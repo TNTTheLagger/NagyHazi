@@ -8,7 +8,6 @@
 #include <conio.h>
 #include <windows.h>
 
-//#define _USE_MATH_DEFINES
 #define SHADING_COUNT (sizeof(SHADING)/sizeof(SHADING[0]))
 #define FLOOR_SHADING_COUNT (sizeof(FLOOR_SHADING)/sizeof(FLOOR_SHADING[0]))
 
@@ -39,6 +38,7 @@ typedef struct player_model {
 //GLOBALS
 const char FLOOR_SHADING[] = { ' ', '-', '.', 'x', '#' };
 const char SHADING[] = {' ','.','`','^','"',' ',',',':',';','I','l','!','i','>','<','~','+','_','-','?','[',']','{','}','1',')','(','|','\\','/','t','f','j','r','x','n','u','v','c','z','X','Y','U','J','C','L','Q','0','O','Z','m','w','q','p','d','b','k','h','a','o','*','#','M','W','&','8','%','B','@','$'};
+const int FRAME_TIME_MS = 1000 / 60;
 map game_map;
 player_model player;
 screen output_screen;
@@ -155,7 +155,7 @@ char get_shade(double distance_to_wall) {
 }
 
 void calc_column(int x) {
-    double ray_angle = (player.a - player.fov / 2.0) + (x / output_screen.width) * player.fov;
+    double ray_angle = (player.a - player.fov / 2.0) + ((double)x / (double)output_screen.width) * player.fov;
     double distance_to_wall = 0;
     double eye_x = sin(ray_angle);
     double eye_y = cos(ray_angle);
@@ -171,14 +171,14 @@ void calc_column(int x) {
             hit_wall = true;
         }
     }
-    double celing =  (output_screen.height / 2.0) - output_screen.height / distance_to_wall;
-    double floor = output_screen.height - celing;
+    int ceiling = (double)(output_screen.height / 2.0) - output_screen.height / distance_to_wall;
+    int floor = output_screen.height - ceiling;
 
     char shade  = get_shade(distance_to_wall);
     for (int y = 0;y < output_screen.height;y++) {
-        if (y < celing) {
+        if (y < ceiling) {
             output_screen.display[y * output_screen.width + x] = ' ';
-        }else if (y > celing && y <= floor) {
+        }else if (y > ceiling && y <= floor) {
             output_screen.display[y * output_screen.width + x] = shade;
         }else {
             double b = 1.0 - (y - output_screen.height / 2.0) / (output_screen.height / 2.0);
@@ -195,8 +195,15 @@ void calc_column(int x) {
 }
 
 void render_screen() {
-    //printf("\033[H"); // move cursor to top-left
-    fwrite(output_screen.display, sizeof(char), output_screen.width * output_screen.height, stdout);
+    // Move cursor to top-left
+    printf("\x1b[H");
+
+    // Print the buffer
+    for (int y = 0; y < output_screen.height; y++) {
+        fwrite(&output_screen.display[y * output_screen.width],
+               sizeof(char), output_screen.width, stdout);
+        putchar('\n');
+    }
     fflush(stdout);
 }
 
@@ -211,6 +218,9 @@ void game_loop() {
         tp1 = current_timestamp_ms();
         elapsed_time = tp1-tp2;
         tp2 = tp1;
+        if (elapsed_time < FRAME_TIME_MS) {
+            Sleep(FRAME_TIME_MS - elapsed_time); // Windows API sleep in ms
+        }
 
         if (_kbhit()) {
             key = _getch();
@@ -258,6 +268,7 @@ void game_loop() {
         //}
         //printf("\033[H");
         //printf("Player a: %ld",player.a);
+        memset(output_screen.display, ' ', output_screen.width * output_screen.height);
     }
     return;
 }
