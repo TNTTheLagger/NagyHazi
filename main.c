@@ -2,11 +2,8 @@
 #include <unistd.h>
 #include <math.h>
 #include <windows.h>
-#include <stdbool.h>
 #include <sys/time.h>
 #include <stdint.h>
-#include <conio.h>
-#include <windows.h>
 
 #define SHADING_COUNT (sizeof(SHADING)/sizeof(SHADING[0]))
 #define FLOOR_SHADING_COUNT (sizeof(FLOOR_SHADING)/sizeof(FLOOR_SHADING[0]))
@@ -37,8 +34,8 @@ typedef struct player_model {
 
 //GLOBALS
 //const char FLOOR_SHADING[] = { ' ', '-', '.', 'x', '#' };
-const char FLOOR_SHADING[] = {' ','.','`','^','"',' ',',',':',';','I','l','!','i','>','<','~','+','_','-','?','[',']','{','}','1',')','(','|','\\','/','t','f','j','r','x','n','u','v','c','z','X','Y','U','J','C','L','Q','0','O','Z','m','w','q','p','d','b','k','h','a','o','*','#','M','W','&','8','%','B','@','$'};
-const char SHADING[] = {' ','.','`','^','"',' ',',',':',';','I','l','!','i','>','<','~','+','_','-','?','[',']','{','}','1',')','(','|','\\','/','t','f','j','r','x','n','u','v','c','z','X','Y','U','J','C','L','Q','0','O','Z','m','w','q','p','d','b','k','h','a','o','*','#','M','W','&','8','%','B','@','$'};
+const char FLOOR_SHADING[] = {' ', '.', '\'', '`', '^', '"', ',', ':', ';', 'i', 'l', 'I', '!', '>', '<', '~', '+', '_', '-', '?', ']', '[', '}', '{', '1', ')', '(', '|', '\\', '/', 't', 'f', 'j', 'r', 'x', 'n', 'u', 'v', 'c', 'z', 'X', 'Y', 'U', 'J', 'C', 'L', 'Q', '0', 'O', 'Z', 'm', 'w', 'q', 'p', 'd', 'b', 'k', 'h', 'a', 'o', '*', '#', 'M', 'W', '&', '8', '%', 'B', '@', '$'};
+const char SHADING[] = {' ', '.', '\'', '`', '^', '"', ',', ':', ';', 'i', 'l', 'I', '!', '>', '<', '~', '+', '_', '-', '?', ']', '[', '}', '{', '1', ')', '(', '|', '\\', '/', 't', 'f', 'j', 'r', 'x', 'n', 'u', 'v', 'c', 'z', 'X', 'Y', 'U', 'J', 'C', 'L', 'Q', '0', 'O', 'Z', 'm', 'w', 'q', 'p', 'd', 'b', 'k', 'h', 'a', 'o', '*', '#', 'M', 'W', '&', '8', '%', 'B', '@', '$'};
 const int FRAME_TIME_MS = 1000 / 60;
 map game_map;
 player_model player;
@@ -140,8 +137,8 @@ void print_map(const map *m) {
 }
 
 void setup_player_global() {
-    player.x = game_map.player_start_x;
-    player.y = game_map.player_start_y;
+    player.x = game_map.player_start_x + 0.5;
+    player.y = game_map.player_start_y + 0.5;
     player.fov = 3.14159 / 3.0;
     player.a = 0;
     player.speed = 0.005;
