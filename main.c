@@ -36,7 +36,8 @@ typedef struct player_model {
 }player_model;
 
 //GLOBALS
-const char FLOOR_SHADING[] = { ' ', '-', '.', 'x', '#' };
+//const char FLOOR_SHADING[] = { ' ', '-', '.', 'x', '#' };
+const char FLOOR_SHADING[] = {' ','.','`','^','"',' ',',',':',';','I','l','!','i','>','<','~','+','_','-','?','[',']','{','}','1',')','(','|','\\','/','t','f','j','r','x','n','u','v','c','z','X','Y','U','J','C','L','Q','0','O','Z','m','w','q','p','d','b','k','h','a','o','*','#','M','W','&','8','%','B','@','$'};
 const char SHADING[] = {' ','.','`','^','"',' ',',',':',';','I','l','!','i','>','<','~','+','_','-','?','[',']','{','}','1',')','(','|','\\','/','t','f','j','r','x','n','u','v','c','z','X','Y','U','J','C','L','Q','0','O','Z','m','w','q','p','d','b','k','h','a','o','*','#','M','W','&','8','%','B','@','$'};
 const int FRAME_TIME_MS = 1000 / 60;
 map game_map;
@@ -44,14 +45,26 @@ player_model player;
 screen output_screen;
 
 
-void getScreenSize() {
+void get_screen_size() {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     int columns, rows;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
     columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
     rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-    output_screen.width = columns;
+    output_screen.width = columns-1;
     output_screen.height = rows;
+    output_screen.display = malloc(columns * rows * sizeof(char));
+}
+
+void update_screen_size() {
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    int columns, rows;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    output_screen.width = columns-1;
+    output_screen.height = rows;
+    free(output_screen.display);
     output_screen.display = malloc(columns * rows * sizeof(char));
 }
 
@@ -129,10 +142,10 @@ void print_map(const map *m) {
 void setup_player_global() {
     player.x = game_map.player_start_x;
     player.y = game_map.player_start_y;
-    player.fov = 3.14159 / 4.0;
+    player.fov = 3.14159 / 3.0;
     player.a = 0;
-    player.speed = 0.01;
-    player.turn_speed = 0.005;
+    player.speed = 0.005;
+    player.turn_speed = 0.001;
     player.render_distance = 10;
 }
 
@@ -195,17 +208,33 @@ void calc_column(int x) {
 }
 
 void render_screen() {
-    // Move cursor to top-left
-    printf("\x1b[H");
+    // Move cursor to top-left and clear screen content below
+    fwrite("\x1b[H\x1b[J", 1, 6, stdout);
 
-    // Print the buffer
-    for (int y = 0; y < output_screen.height; y++) {
-        fwrite(&output_screen.display[y * output_screen.width],
-               sizeof(char), output_screen.width, stdout);
-        putchar('\n');
+    int total_size = output_screen.width * output_screen.height;
+    static char *buf = NULL;
+    static int buf_size = 0;
+
+    int needed = total_size + output_screen.height; // add '\n' per line
+    if (buf_size < needed) {
+        buf = realloc(buf, needed);
+        buf_size = needed;
     }
+
+    // Fill buffer with the screen content + newlines
+    char *dst = buf;
+    for (int y = 0; y < output_screen.height; y++) {
+        memcpy(dst, &output_screen.display[y * output_screen.width],
+               output_screen.width);
+        dst += output_screen.width;
+        *dst++ = '\n';
+    }
+
+    // Write everything in one syscall
+    fwrite(buf, 1, dst - buf, stdout);
     fflush(stdout);
 }
+
 
 
 void game_loop() {
@@ -214,49 +243,52 @@ void game_loop() {
     uint64_t tp2 = current_timestamp_ms();
     uint64_t tp1;
     char key = 0;
+    int f_counter = 0;
     while (running) {
+        f_counter++;
+        if (f_counter > 60) {
+            update_screen_size();
+            f_counter = 0;
+        }
         tp1 = current_timestamp_ms();
         elapsed_time = tp1-tp2;
         tp2 = tp1;
         if (elapsed_time < FRAME_TIME_MS) {
-            Sleep(FRAME_TIME_MS - elapsed_time); // Windows API sleep in ms
+            if (FRAME_TIME_MS - elapsed_time < 5) {
+                Sleep(5);
+            }else {
+                Sleep(FRAME_TIME_MS - elapsed_time); // Windows API sleep in ms
+            }
         }
 
-        if (_kbhit()) {
-            key = _getch();
-            switch (key) {
-                case 'w':
-                case 'W':
-                    player.x += sin(player.a) * player.speed * elapsed_time;
-                    player.y += cos(player.a) * player.speed * elapsed_time;
-                    if (game_map.m[(int)player.y * game_map.width + (int)player.x] == '#') {
-                        player.x -= sin(player.a) * player.speed * elapsed_time;
-                        player.y -= cos(player.a) * player.speed * elapsed_time;
-                    }
-                    break;
-                case 's':
-                case 'S':
-                    player.x -= sin(player.a) * player.speed * elapsed_time;
-                    player.y -= cos(player.a) * player.speed * elapsed_time;
-                    if (game_map.m[(int)player.y * game_map.width + (int)player.x] == '#') {
-                        player.x += sin(player.a) * player.speed * elapsed_time;
-                        player.y += cos(player.a) * player.speed * elapsed_time;
-                    }
-                    break;
-                case 'a':
-                case 'A':
-                    player.a -= player.turn_speed * elapsed_time;
-                    break;
-                case 'd':
-                case 'D':
-                    player.a += player.turn_speed * elapsed_time;
-                    break;
-                case 'q':
-                case 'Q':
-                    running = false;
-                default:
-                    break;
+        if (GetAsyncKeyState('W') & 0x8000) { // Forward
+            player.x += sin(player.a) * player.speed * elapsed_time;
+            player.y += cos(player.a) * player.speed * elapsed_time;
+            if (game_map.m[(int)player.y * game_map.width + (int)player.x] == '#') {
+                player.x -= sin(player.a) * player.speed * elapsed_time;
+                player.y -= cos(player.a) * player.speed * elapsed_time;
             }
+        }
+
+        if (GetAsyncKeyState('S') & 0x8000) { // Backward
+            player.x -= sin(player.a) * player.speed * elapsed_time;
+            player.y -= cos(player.a) * player.speed * elapsed_time;
+            if (game_map.m[(int)player.y * game_map.width + (int)player.x] == '#') {
+                player.x += sin(player.a) * player.speed * elapsed_time;
+                player.y += cos(player.a) * player.speed * elapsed_time;
+            }
+        }
+
+        if (GetAsyncKeyState('A') & 0x8000) { // Turn left
+            player.a -= player.turn_speed * elapsed_time;
+        }
+
+        if (GetAsyncKeyState('D') & 0x8000) { // Turn right
+            player.a += player.turn_speed * elapsed_time;
+        }
+
+        if (GetAsyncKeyState('Q') & 0x8000) { // Quit
+            running = false;
         }
         for (int x = 0;x < output_screen.width;x++) {
             calc_column(x);
@@ -274,7 +306,7 @@ void game_loop() {
 }
 
 int main(void) {
-    getScreenSize();
+    get_screen_size();
     if (output_screen.display == NULL) {
         return 1;
     }
@@ -287,6 +319,6 @@ int main(void) {
     game_loop();
     free(output_screen.display);
     free(game_map.m);
-    system("pause");
+    //system("pause");
     return 0;
 }
