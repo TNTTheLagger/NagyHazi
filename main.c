@@ -5,7 +5,7 @@
 
 #ifdef _WIN32
 #include <Windows.h>
-#include <stdint.h>  // for uint64_t
+#include <stdint.h>
 
 int gettimeofday(struct timeval *tp, void *tzp) {
     FILETIME ft;
