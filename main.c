@@ -291,12 +291,6 @@ void game_loop() {
             calc_column(x);
         }
         render_screen();
-        //printf("%s",output_screen.display);
-        //for (int i = 0; i < output_screen.width*output_screen.height; i++) {
-        //    putchar(output_screen.display[i]);
-        //}
-        //printf("\033[H");
-        //printf("Player a: %ld",player.a);
         memset(output_screen.display, ' ', output_screen.width * output_screen.height);
     }
     return;
@@ -316,6 +310,5 @@ int main(void) {
     game_loop();
     free(output_screen.display);
     free(game_map.m);
-    //system("pause");
     return 0;
 }
