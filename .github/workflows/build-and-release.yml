@@ -83,7 +83,7 @@ jobs:
           $commit_url = "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
           # sanitize newlines in commit message
           $commit_msg_single = ($commit_msg -replace "\r?\n", ' ')
-          $body = "You need to have a [map](https://github.com/TNTTheLagger/NagyHazi/blob/master/Extras/map.csv) file next to the exe when running it\n- [$commit_msg_single]($commit_url)"
+          $body = "You need to have a [map](https://github.com/TNTTheLagger/NagyHazi/blob/master/Extras/map.csv) file next to the exe when running it. Latest commit: [$commit_msg_single]($commit_url)"
 
           Write-Host "Release body: $body"
 
