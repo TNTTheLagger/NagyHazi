@@ -1,5 +1,11 @@
 #include <stdio.h>
+#ifdef _WIN32
+#include <io.h>
+#define access _access
+
+#else
 #include <unistd.h>
+#endif
 #include <math.h>
 #include <windows.h>
 #include <sys/time.h>
