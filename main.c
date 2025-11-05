@@ -1,9 +1,32 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <math.h>
-#include <windows.h>
 #include <sys/time.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+/* Provide Sleep macro on POSIX */
+#define Sleep(ms) usleep((ms) * 1000)
+/* Minimal stub for GetAsyncKeyState so code compiles on POSIX;
+   returns 0 (no key pressed). This keeps behavior non-interactive
+   on Linux but allows compilation. */
+static short GetAsyncKeyState(int vKey) {
+    (void)vKey;
+    return 0;
+}
+#endif
 
 #define SHADING_COUNT (sizeof(SHADING)/sizeof(SHADING[0]))
 #define FLOOR_SHADING_COUNT (sizeof(FLOOR_SHADING)/sizeof(FLOOR_SHADING[0]))
@@ -43,6 +66,7 @@ screen output_screen;
 
 
 void get_screen_size() {
+#ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     int columns, rows;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
@@ -51,9 +75,24 @@ void get_screen_size() {
     output_screen.width = columns-1;
     output_screen.height = rows;
     output_screen.display = malloc(columns * rows * sizeof(char));
+#else
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1) {
+        /* fallback defaults */
+        output_screen.width = 80 - 1;
+        output_screen.height = 24;
+    } else {
+        output_screen.width = (int)ws.ws_col - 1;
+        output_screen.height = (int)ws.ws_row;
+        if (output_screen.width < 10) output_screen.width = 10;
+        if (output_screen.height < 5) output_screen.height = 5;
+    }
+    output_screen.display = malloc((size_t)output_screen.width * (size_t)output_screen.height * sizeof(char));
+#endif
 }
 
 void update_screen_size() {
+#ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     int columns, rows;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
@@ -63,6 +102,17 @@ void update_screen_size() {
     output_screen.height = rows;
     free(output_screen.display);
     output_screen.display = malloc(columns * rows * sizeof(char));
+#else
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
+        output_screen.width = (int)ws.ws_col - 1;
+        output_screen.height = (int)ws.ws_row;
+        if (output_screen.width < 10) output_screen.width = 10;
+        if (output_screen.height < 5) output_screen.height = 5;
+    }
+    free(output_screen.display);
+    output_screen.display = malloc((size_t)output_screen.width * (size_t)output_screen.height * sizeof(char));
+#endif
 }
 
 map load_map(char file_path[]) {
@@ -127,7 +177,7 @@ map load_map(char file_path[]) {
 void print_map(const map *m) {
     for (int y = 0; y < m->height; y++) {
         for (int x = 0; x < m->width; x++) {
-            if (x == player.x && y == player.y)
+            if (x == (int)player.x && y == (int)player.y)
                 putchar('X');
             else
                 putchar(m->m[y * m->width + x]);
