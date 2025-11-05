@@ -1,0 +1,114 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure CMake
+        run: cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --target 3dGame
+
+      - name: Find built executable
+        id: find_exe
+        shell: powershell
+        run: |
+          # Try to find the exact expected exe first, then any exe as a fallback
+          $exe = Get-ChildItem -Path "${{ github.workspace }}" -Filter '3dGame.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $exe) {
+            $exe = Get-ChildItem -Path "${{ github.workspace }}" -Filter '*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+            if (-not $exe) { Write-Error "No executable found in workspace"; exit 1 }
+          }
+          Write-Host "Found exe: $exe"
+          echo "exe_path=$exe" >> $env:GITHUB_OUTPUT
+
+      - name: Get previous release and bump patch
+        id: bump
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $repo = "${{ github.repository }}"
+          Write-Host "Repo: $repo"
+
+          # Query latest release via GitHub API (silently continue on error)
+          try {
+            $response = Invoke-RestMethod -Headers @{Authorization = "token $env:GITHUB_TOKEN"} -Uri "https://api.github.com/repos/$repo/releases/latest" -Method Get -ErrorAction Stop
+            $tag = $response.tag_name
+          } catch {
+            Write-Host "No latest release found or API error; defaulting to 0.0.0"
+            $tag = "0.0.0"
+          }
+
+          if (-not $tag) { $tag = "0.0.0" }
+
+          # Strip possible leading 'v'
+          $tag = $tag.TrimStart('v')
+
+          # Ensure we have three numeric parts
+          $parts = $tag.Split('.')
+          if ($parts.Length -lt 3) { $parts = @('0','0','0') }
+
+          $major = [int]::Parse($parts[0])
+          $minor = [int]::Parse($parts[1])
+          $patch = [int]::Parse($parts[2])
+
+          $newPatch = $patch + 1
+          $newTag = "${major}.${minor}.${newPatch}"
+
+          Write-Host "Previous tag: $tag"
+          Write-Host "New tag: $newTag"
+
+          echo "latest=$tag" >> $env:GITHUB_OUTPUT
+          echo "new_tag=$newTag" >> $env:GITHUB_OUTPUT
+
+          # generate release body containing a markdown link to the triggering commit and the commit message
+          $commit_msg = (git log -1 --pretty=%B).Trim()
+          $commit_url = "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+          # sanitize newlines in commit message
+          $commit_msg_single = ($commit_msg -replace "\r?\n", ' ')
+          $body = "- [$commit_msg_single]($commit_url)"
+
+          Write-Host "Release body: $body"
+
+          Write-Output "release_body<<EOF" >> $env:GITHUB_OUTPUT
+          Write-Output $body >> $env:GITHUB_OUTPUT
+          Write-Output "EOF" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.bump.outputs.new_tag }}
+          release_name: ${{ steps.bump.outputs.new_tag }}
+          body: ${{ steps.bump.outputs.release_body }}
+          draft: false
+          prerelease: false
+
+      - name: Upload executable to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.find_exe.outputs.exe_path }}
+          asset_name: 3dGame.exe
+          asset_content_type: application/octet-stream
+
