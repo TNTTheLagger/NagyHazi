@@ -1,15 +1,18 @@
 #include <stdio.h>
-#ifdef _WIN32
-#include <io.h>
-#define access _access
-
-#else
-#include <unistd.h>
-#endif
-#include <math.h>
-#include <windows.h>
-#include <sys/time.h>
 #include <stdint.h>
+#include <math.h>
+
+#ifdef _WIN32
+  #include <io.h>
+  #include <windows.h>
+  #define access _access
+
+  /* Visual C++ / Windows does *not* provide <unistd.h> by default, nor <sys/time.h> in the same layout as Unix. */
+  /* If you need gettimeofday or similar, you’ll have to implement or use Windows equivalents. */
+#else
+  #include <unistd.h>
+  #include <sys/time.h>
+#endif
 
 #define SHADING_COUNT (sizeof(SHADING)/sizeof(SHADING[0]))
 #define FLOOR_SHADING_COUNT (sizeof(FLOOR_SHADING)/sizeof(FLOOR_SHADING[0]))
