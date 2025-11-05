@@ -3,15 +3,38 @@
 #include <math.h>
 
 #ifdef _WIN32
-  #include <io.h>
-  #include <windows.h>
-  #define access _access
+#include <Windows.h>
+#include <stdint.h>  // for uint64_t
 
-  /* Visual C++ / Windows does *not* provide <unistd.h> by default, nor <sys/time.h> in the same layout as Unix. */
-  /* If you need gettimeofday or similar, you’ll have to implement or use Windows equivalents. */
+struct timeval {
+    long tv_sec;   /* seconds */
+    long tv_usec;  /* microseconds */
+};
+
+int gettimeofday(struct timeval *tp, void *tzp) {
+    FILETIME ft;
+    uint64_t tmpres = 0;
+    const uint64_t EPOCH_DIFF = 11644473600000000ULL; // difference between Jan 1, 1601 and Jan 1, 1970 in 100-ns units
+
+    if (tp) {
+        GetSystemTimeAsFileTime(&ft);
+        tmpres |= ft.dwHighDateTime;
+        tmpres <<= 32;
+        tmpres |= ft.dwLowDateTime;
+
+        // Convert into microseconds
+        tmpres /= 10;
+        // Convert from Windows epoch (1601) to Unix epoch (1970)
+        tmpres -= EPOCH_DIFF;
+
+        tp->tv_sec  = (long)(tmpres / 1000000ULL);
+        tp->tv_usec = (long)(tmpres % 1000000ULL);
+    }
+    // tzp is ignored (timezone info deprecated)
+    return 0;
+}
 #else
-  #include <unistd.h>
-  #include <sys/time.h>
+#include <sys/time.h>
 #endif
 
 #define SHADING_COUNT (sizeof(SHADING)/sizeof(SHADING[0]))
