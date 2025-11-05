@@ -6,11 +6,6 @@
 #include <Windows.h>
 #include <stdint.h>  // for uint64_t
 
-struct timeval {
-    long tv_sec;   /* seconds */
-    long tv_usec;  /* microseconds */
-};
-
 int gettimeofday(struct timeval *tp, void *tzp) {
     FILETIME ft;
     uint64_t tmpres = 0;
