@@ -146,6 +146,8 @@ map load_map(char file_path[]);
 
 // Old single-load action replaced by opening the maps list
 static void action_show_maps(void);
+// New prototype for Back action in maps menu
+static void action_maps_back(void);
 
 void setup_player_global(void);
 
@@ -169,11 +171,26 @@ static void action_load_selected_map(void) {
 
 void menu_render(menu_t * menu);
 
+// New: Back action for maps menu
+static void action_maps_back(void) {
+    // Return to main menu without freeing the maps_menu here
+    active_menu = &main_menu;
+    menu_active = true;
+    // re-render main menu
+    if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+    menu_render(active_menu);
+}
+
+void menu_render(menu_t * menu);
+
 // Show/populate the maps menu by scanning current directory for *.csv files
 static void menu_show_maps(void) {
     // free previous if any
     if (maps_menu.items) menu_free(&maps_menu);
     menu_init(&maps_menu);
+
+    // Add Back as the first item
+    menu_add_item(&maps_menu, "< Back", action_maps_back);
 
 #ifdef _WIN32
     WIN32_FIND_DATAA fd;
@@ -201,7 +218,8 @@ static void menu_show_maps(void) {
     }
 #endif
 
-    if (maps_menu.count == 0) {
+    // If only Back exists, add a "No maps found" placeholder
+    if (maps_menu.count == 1) {
         menu_add_item(&maps_menu, "No maps found", NULL);
     }
 
@@ -599,3 +617,4 @@ int main(void) {
     free(game_map.m);
     return 0;
 }
+
