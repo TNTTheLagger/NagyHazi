@@ -2,35 +2,51 @@
 #include <stdint.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef _WIN32
 #include <Windows.h>
 #include <stdint.h>
-
-int gettimeofday(struct timeval *tp, void *tzp) {
-    FILETIME ft;
-    uint64_t tmpres = 0;
-    const uint64_t EPOCH_DIFF = 11644473600000000ULL; // difference between Jan 1, 1601 and Jan 1, 1970 in 100-ns units
-
-    if (tp) {
-        GetSystemTimeAsFileTime(&ft);
-        tmpres |= ft.dwHighDateTime;
-        tmpres <<= 32;
-        tmpres |= ft.dwLowDateTime;
-
-        // Convert into microseconds
-        tmpres /= 10;
-        // Convert from Windows epoch (1601) to Unix epoch (1970)
-        tmpres -= EPOCH_DIFF;
-
-        tp->tv_sec  = (long)(tmpres / 1000000ULL);
-        tp->tv_usec = (long)(tmpres % 1000000ULL);
-    }
-    // tzp is ignored (timezone info deprecated)
-    return 0;
-}
 #else
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <termios.h>
 #include <sys/time.h>
+
+// Minimal types and stubs so code compiles on non-Windows systems.
+typedef struct { int Left, Top, Right, Bottom; } SMALL_RECT;
+typedef struct { int X, Y; } COORD;
+typedef struct {
+    COORD dwSize;
+    COORD dwCursorPosition;
+    SMALL_RECT srWindow;
+} CONSOLE_SCREEN_BUFFER_INFO;
+
+#define STD_OUTPUT_HANDLE  ((int)1)
+static int GetStdHandle(int dummy) { return 1; }
+static int GetConsoleScreenBufferInfo(int h, CONSOLE_SCREEN_BUFFER_INFO *csbi) {
+    struct winsize w;
+    if (ioctl(1, TIOCGWINSZ, &w) == -1) {
+        csbi->srWindow.Left = 0;
+        csbi->srWindow.Top = 0;
+        csbi->srWindow.Right = 79;
+        csbi->srWindow.Bottom = 23;
+    } else {
+        csbi->srWindow.Left = 0;
+        csbi->srWindow.Top = 0;
+        csbi->srWindow.Right = (int)w.ws_col - 1;
+        csbi->srWindow.Bottom = (int)w.ws_row - 1;
+    }
+    return 1;
+}
+// Virtual-key codes used in code; on non-Windows they are just placeholders.
+#define VK_ESCAPE 0x1B
+#define VK_UP     0x26
+#define VK_DOWN   0x28
+#define VK_RETURN 0x0D
+static short GetAsyncKeyState(int vkey) { (void)vkey; return 0; }
+static void Sleep(int ms) { usleep((useconds_t)ms * 1000); }
 #endif
 
 #define SHADING_COUNT (sizeof(SHADING)/sizeof(SHADING[0]))
@@ -69,6 +85,108 @@ map game_map;
 player_model player;
 screen output_screen;
 
+
+// Menu system
+typedef void (*menu_action_t)(void);
+
+typedef struct menu_item {
+    char *text;
+    menu_action_t action;
+} menu_item;
+
+typedef struct menu_t {
+    menu_item *items;
+    int count;
+    int capacity;
+    int selected;
+} menu_t;
+
+static menu_t main_menu = {0};
+static bool menu_active = false;
+static volatile int request_quit = 0; // set by Quit action
+
+void menu_init(menu_t *m) {
+    m->count = 0;
+    m->capacity = 4;
+    m->selected = 0;
+    m->items = malloc(sizeof(menu_item) * m->capacity);
+}
+
+void menu_free(menu_t *m) {
+    if (!m) return;
+    for (int i = 0; i < m->count; ++i) free(m->items[i].text);
+    free(m->items);
+    m->items = NULL;
+    m->count = m->capacity = m->selected = 0;
+}
+
+// Adds a copy of text and an action callback to the menu; safe to call at runtime
+void menu_add_item(menu_t *m, const char *text, menu_action_t action) {
+    if (m->count >= m->capacity) {
+        m->capacity *= 2;
+        m->items = realloc(m->items, sizeof(menu_item) * m->capacity);
+    }
+    m->items[m->count].text = strdup(text);
+    m->items[m->count].action = action;
+    m->count++;
+}
+
+// Example menu actions
+static void action_resume(void) {
+    menu_active = false;
+}
+
+map load_map(char file_path[]);
+
+static void action_load_map(void) {
+    free(game_map.m);
+    load_map("map.csv");
+    menu_active = false;
+}
+static void action_save_map(void) {
+    // placeholder: close menu for now
+    menu_active = false;
+}
+static void action_quit(void) {
+    request_quit = 1;
+}
+
+void render_screen(void);
+
+// Render menu centered into output_screen.display
+void menu_render(menu_t *m) {
+    if (!m || m->count == 0) return;
+    // Clear buffer
+    memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+
+    // Find max item width
+    int maxw = 0;
+    for (int i = 0; i < m->count; ++i) {
+        int len = (int)strlen(m->items[i].text);
+        if (len > maxw) maxw = len;
+    }
+    int total_height = m->count;
+    int start_y = (output_screen.height - total_height) / 2;
+    for (int i = 0; i < m->count; ++i) {
+        const char *it = m->items[i].text;
+        int len = (int)strlen(it);
+        int start_x = (output_screen.width - maxw) / 2;
+        int y = start_y + i;
+        if (y < 0 || y >= output_screen.height) continue;
+        int base = y * output_screen.width + start_x;
+        // prefix for selected item
+        if (i == m->selected) {
+            // mark selection with > and < if space allows
+            if (start_x > 1) output_screen.display[base - 2] = '>';
+            if (start_x + maxw + 1 < output_screen.width) output_screen.display[base + len + 1] = '<';
+        }
+        // copy text
+        for (int x = 0; x < len && (start_x + x) < output_screen.width; ++x) {
+            output_screen.display[base + x] = it[x];
+        }
+    }
+    render_screen();
+}
 
 void get_screen_size() {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -174,6 +292,8 @@ void setup_player_global() {
     player.render_distance = 10;
 }
 
+void gettimeofday(struct timeval * tv, void * p);
+
 uint64_t current_timestamp_ms(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -270,6 +390,54 @@ void game_loop() {
     char key = 0;
     int f_counter = 0;
     while (running) {
+        // Toggle menu on ESC press
+        if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+            // Debounce: wait a short bit
+            menu_active = !menu_active;
+            // Clear screen buffer when menu opens
+            if (menu_active) {
+                memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+                menu_render(&main_menu);
+            }
+            // small delay so single press toggles once
+            Sleep(150);
+        }
+
+        if (menu_active) {
+            // Menu input handling
+            if ((GetAsyncKeyState(VK_UP) & 0x8000) || (GetAsyncKeyState('W') & 0x8000)) {
+                main_menu.selected--;
+                if (main_menu.selected < 0) main_menu.selected = main_menu.count - 1;
+                menu_render(&main_menu);
+                Sleep(100);
+            }
+            if ((GetAsyncKeyState(VK_DOWN) & 0x8000) || (GetAsyncKeyState('S') & 0x8000)) {
+                main_menu.selected++;
+                if (main_menu.selected >= main_menu.count) main_menu.selected = 0;
+                menu_render(&main_menu);
+                Sleep(100);
+            }
+            if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
+                // Call the stored callback for the selected item
+                if (main_menu.count > 0) {
+                    menu_action_t act = main_menu.items[main_menu.selected].action;
+                    if (act) act();
+                    if (request_quit) return; // Quit action requested program exit
+                    if (!menu_active) {
+                        // menu closed by action; clear menu from screen so game redraws next loop
+                        memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+                    } else {
+                        // menu still active: re-render to reflect any state changes
+                        menu_render(&main_menu);
+                    }
+                }
+                Sleep(150);
+            }
+            // Keep menu frame rate low
+            Sleep(20);
+            continue;
+        }
+
         f_counter++;
         if (f_counter > 60) {
             update_screen_size();
@@ -335,7 +503,14 @@ int main(void) {
     printf("Player start pos: %dx%d\n",game_map.player_start_x,game_map.player_start_y);
     setup_player_global();
     print_map(&game_map);
+    // Initialize menu and add items (provide callbacks)
+    menu_init(&main_menu);
+    menu_add_item(&main_menu, "Resume", action_resume);
+    menu_add_item(&main_menu, "Load map", action_load_map);
+    menu_add_item(&main_menu, "Save map", action_save_map);
+    menu_add_item(&main_menu, "Quit", action_quit);
     game_loop();
+    menu_free(&main_menu);
     free(output_screen.display);
     free(game_map.m);
     return 0;
