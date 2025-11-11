@@ -136,10 +136,74 @@ void menu_add_item(menu_t *m, const char *text, menu_action_t action) {
     m->count++;
 }
 
-// Example menu actions
 static void action_resume(void) {
     menu_active = false;
     active_menu = NULL;
+}
+
+// New helper: find index of item by exact text, or -1 if not found
+static int menu_find_item_index(menu_t *m, const char *text) {
+    if (!m || !m->items || !text) return -1;
+    for (int i = 0; i < m->count; ++i) {
+        if (m->items[i].text && strcmp(m->items[i].text, text) == 0) return i;
+    }
+    return -1;
+}
+
+// New helper: insert item at given index (0..count). shifts following items.
+static void menu_insert_item(menu_t *m, int index, const char *text, menu_action_t action) {
+    if (!m) return;
+    if (index < 0) index = 0;
+    if (index > m->count) index = m->count;
+    if (m->count >= m->capacity) {
+        m->capacity *= 2;
+        m->items = realloc(m->items, sizeof(menu_item) * m->capacity);
+    }
+    // shift right
+    for (int i = m->count; i > index; --i) {
+        m->items[i] = m->items[i - 1];
+    }
+    m->items[index].text = strdup(text);
+    m->items[index].action = action;
+    m->count++;
+}
+
+// New helper: remove first item matching text
+static void menu_remove_item_by_text(menu_t *m, const char *text) {
+    if (!m || !m->items || !text) return;
+    int idx = menu_find_item_index(m, text);
+    if (idx < 0) return;
+    free(m->items[idx].text);
+    // shift left
+    for (int i = idx; i + 1 < m->count; ++i) {
+        m->items[i] = m->items[i + 1];
+    }
+    m->count--;
+    // optional: shrink capacity omitted for simplicity
+}
+
+static void action_save_map(void) {
+    // placeholder: close menu for now
+    menu_active = false;
+    active_menu = NULL;
+}
+
+// Ensure the Resume item is present in main_menu iff a map is loaded
+static void ensure_resume_state(void) {
+    bool has_map = (game_map.m != NULL);
+    int idx = menu_find_item_index(&main_menu, "Resume");
+    if (has_map && idx == -1) {
+        // Insert Resume at top (index 0)
+        menu_insert_item(&main_menu, 0, "Resume", action_resume);
+        menu_insert_item(&main_menu, 2,"Save map", action_save_map);
+    } else if (!has_map && idx != -1) {
+        // Remove Resume
+        menu_remove_item_by_text(&main_menu, "Resume");
+        menu_remove_item_by_text(&main_menu, "Save map");
+        // ensure selected index is valid
+        if (main_menu.selected >= main_menu.count) main_menu.selected = main_menu.count - 1;
+        if (main_menu.selected < 0) main_menu.selected = 0;
+    }
 }
 
 map load_map(char file_path[]);
@@ -161,6 +225,8 @@ static void action_load_selected_map(void) {
     free(game_map.m);
     game_map = load_map(fname);
     setup_player_global();
+    // Ensure Resume is available now that a map was (attempted to be) loaded
+    ensure_resume_state();
     // close and free the maps menu
     menu_active = false;
     active_menu = NULL;
@@ -233,11 +299,6 @@ static void menu_show_maps(void) {
 static void action_load_map(void) {
     // kept for compatibility but open maps menu instead of loading hardcoded file
     menu_show_maps();
-}
-static void action_save_map(void) {
-    // placeholder: close menu for now
-    menu_active = false;
-    active_menu = NULL;
 }
 static void action_quit(void) {
     request_quit = 1;
@@ -597,18 +658,33 @@ int main(void) {
     if (output_screen.display == NULL) {
         return 1;
     }
-    printf("columns: %d\trows: %d\n", output_screen.width,output_screen.height);
-    game_map = load_map("map.csv");
-    printf("Map size: %dx%d\n",game_map.width,game_map.height);
-    printf("Player start pos: %dx%d\n",game_map.player_start_x,game_map.player_start_y);
+    //printf("columns: %d\trows: %d\n", output_screen.width,output_screen.height);
+    //game_map = load_map("map.csv");
+    //printf("Map size: %dx%d\n",game_map.width,game_map.height);
+    //printf("Player start pos: %dx%d\n",game_map.player_start_x,game_map.player_start_y);
     setup_player_global();
-    print_map(&game_map);
+    //print_map(&game_map);
     // Initialize menu and add items (provide callbacks)
     menu_init(&main_menu);
-    menu_add_item(&main_menu, "Resume", action_resume);
+    // Only add Resume if a map was successfully loaded
+    if (game_map.m != NULL) {
+        menu_add_item(&main_menu, "Resume", action_resume);
+        menu_add_item(&main_menu, "Save map", action_save_map);
+    }
     menu_add_item(&main_menu, "Load map", action_load_map); // now opens maps list
-    menu_add_item(&main_menu, "Save map", action_save_map);
     menu_add_item(&main_menu, "Quit", action_quit);
+
+    // Ensure menu reflects current map-loaded state (keeps consistency)
+    ensure_resume_state();
+
+    // Start the program with the main menu active
+    menu_active = true;
+    active_menu = &main_menu;
+    if (output_screen.display) {
+        memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+        menu_render(active_menu);
+    }
+
     game_loop();
     menu_free(&main_menu);
     // free maps_menu in case it is still allocated
@@ -617,4 +693,3 @@ int main(void) {
     free(game_map.m);
     return 0;
 }
-
