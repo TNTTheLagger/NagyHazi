@@ -8,6 +8,31 @@
 #ifdef _WIN32
 #include <Windows.h>
 #include <stdint.h>
+
+// --- Added: Windows compatibility helpers ---
+// Map POSIX strdup to MSVC _strdup to avoid deprecation warnings
+#ifndef strdup
+#define strdup _strdup
+#endif
+
+
+// Implement gettimeofday on Windows so current_timestamp_ms links
+static int gettimeofday(struct timeval *tp, void *tzp) {
+    (void)tzp;
+    FILETIME ft;
+    unsigned long long tmpres = 0;
+    // Get system time as FILETIME (100-ns intervals since Jan 1, 1601)
+    GetSystemTimeAsFileTime(&ft);
+    tmpres |= ((unsigned long long)ft.dwHighDateTime) << 32;
+    tmpres |= ft.dwLowDateTime;
+    // Convert to microseconds
+    tmpres /= 10;
+    // Convert from Windows epoch (1601) to Unix epoch (1970)
+    tmpres -= 11644473600000000ULL;
+    tp->tv_sec = (long)(tmpres / 1000000ULL);
+    tp->tv_usec = (long)(tmpres % 1000000ULL);
+    return 0;
+}
 #else
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -22,7 +47,6 @@ typedef struct {
     COORD dwCursorPosition;
     SMALL_RECT srWindow;
 } CONSOLE_SCREEN_BUFFER_INFO;
-#define strdup _strdup
 
 #define STD_OUTPUT_HANDLE  ((int)1)
 static int GetStdHandle(int dummy) { return 1; }
@@ -446,7 +470,7 @@ void setup_player_global() {
     player.render_distance = 10;
 }
 
-void gettimeofday(struct timeval * tv, void * p);
+//void gettimeofday(struct timeval * tv, void * p);
 
 uint64_t current_timestamp_ms(void) {
     struct timeval tv;
