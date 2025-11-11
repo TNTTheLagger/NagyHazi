@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <termios.h>
 #include <sys/time.h>
-
+#include <dirent.h> // added for scanning directory
 // Minimal types and stubs so code compiles on non-Windows systems.
 typedef struct { int Left, Top, Right, Bottom; } SMALL_RECT;
 typedef struct { int X, Y; } COORD;
@@ -102,6 +102,11 @@ typedef struct menu_t {
 } menu_t;
 
 static menu_t main_menu = {0};
+// New: second menu for maps
+static menu_t maps_menu = {0};
+// New: pointer to currently active menu (main or maps)
+static menu_t *active_menu = NULL;
+
 static bool menu_active = false;
 static volatile int request_quit = 0; // set by Quit action
 
@@ -134,18 +139,87 @@ void menu_add_item(menu_t *m, const char *text, menu_action_t action) {
 // Example menu actions
 static void action_resume(void) {
     menu_active = false;
+    active_menu = NULL;
 }
 
 map load_map(char file_path[]);
 
-static void action_load_map(void) {
+// Old single-load action replaced by opening the maps list
+static void action_show_maps(void);
+
+void setup_player_global(void);
+
+// Called when a map menu item is selected; loads the selected map from maps_menu
+static void action_load_selected_map(void) {
+    if (maps_menu.count == 0) return;
+    int idx = maps_menu.selected;
+    if (idx < 0 || idx >= maps_menu.count) return;
+    char *fname = maps_menu.items[idx].text;
+    if (!fname) return;
     free(game_map.m);
-    load_map("map.csv");
+    game_map = load_map(fname);
+    setup_player_global();
+    // close and free the maps menu
     menu_active = false;
+    active_menu = NULL;
+    menu_free(&maps_menu);
+    // clear screen buffer so the game will redraw
+    if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+}
+
+void menu_render(menu_t * menu);
+
+// Show/populate the maps menu by scanning current directory for *.csv files
+static void menu_show_maps(void) {
+    // free previous if any
+    if (maps_menu.items) menu_free(&maps_menu);
+    menu_init(&maps_menu);
+
+#ifdef _WIN32
+    WIN32_FIND_DATAA fd;
+    HANDLE hFind = FindFirstFileA("*.csv", &fd);
+    if (hFind != INVALID_HANDLE_VALUE) {
+        do {
+            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                menu_add_item(&maps_menu, fd.cFileName, action_load_selected_map);
+            }
+        } while (FindNextFileA(hFind, &fd));
+        FindClose(hFind);
+    }
+#else
+    DIR *d = opendir(".");
+    if (d) {
+        struct dirent *entry;
+        while ((entry = readdir(d)) != NULL) {
+            const char *name = entry->d_name;
+            size_t len = strlen(name);
+            if (len > 4 && strcmp(name + len - 4, ".csv") == 0) {
+                menu_add_item(&maps_menu, name, action_load_selected_map);
+            }
+        }
+        closedir(d);
+    }
+#endif
+
+    if (maps_menu.count == 0) {
+        menu_add_item(&maps_menu, "No maps found", NULL);
+    }
+
+    // Activate maps menu
+    active_menu = &maps_menu;
+    menu_active = true;
+    if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+    menu_render(active_menu);
+}
+
+static void action_load_map(void) {
+    // kept for compatibility but open maps menu instead of loading hardcoded file
+    menu_show_maps();
 }
 static void action_save_map(void) {
     // placeholder: close menu for now
     menu_active = false;
+    active_menu = NULL;
 }
 static void action_quit(void) {
     request_quit = 1;
@@ -392,43 +466,51 @@ void game_loop() {
     while (running) {
         // Toggle menu on ESC press
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-            // Debounce: wait a short bit
             menu_active = !menu_active;
-            // Clear screen buffer when menu opens
             if (menu_active) {
-                memset(output_screen.display, ' ', output_screen.width * output_screen.height);
-                menu_render(&main_menu);
+                // default to main menu when opening with ESC
+                active_menu = &main_menu;
+                if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+                menu_render(active_menu);
+            } else {
+                // closing menu
+                active_menu = NULL;
+                if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
             }
-            // small delay so single press toggles once
             Sleep(150);
         }
 
-        if (menu_active) {
-            // Menu input handling
+        if (menu_active && active_menu) {
+            // Menu input handling uses active_menu now
             if ((GetAsyncKeyState(VK_UP) & 0x8000) || (GetAsyncKeyState('W') & 0x8000)) {
-                main_menu.selected--;
-                if (main_menu.selected < 0) main_menu.selected = main_menu.count - 1;
-                menu_render(&main_menu);
+                active_menu->selected--;
+                if (active_menu->selected < 0) active_menu->selected = active_menu->count - 1;
+                menu_render(active_menu);
                 Sleep(100);
             }
             if ((GetAsyncKeyState(VK_DOWN) & 0x8000) || (GetAsyncKeyState('S') & 0x8000)) {
-                main_menu.selected++;
-                if (main_menu.selected >= main_menu.count) main_menu.selected = 0;
-                menu_render(&main_menu);
+                active_menu->selected++;
+                if (active_menu->selected >= active_menu->count) active_menu->selected = 0;
+                menu_render(active_menu);
                 Sleep(100);
             }
             if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
                 // Call the stored callback for the selected item
-                if (main_menu.count > 0) {
-                    menu_action_t act = main_menu.items[main_menu.selected].action;
+                if (active_menu->count > 0) {
+                    menu_action_t act = active_menu->items[active_menu->selected].action;
                     if (act) act();
                     if (request_quit) return; // Quit action requested program exit
                     if (!menu_active) {
                         // menu closed by action; clear menu from screen so game redraws next loop
-                        memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+                        if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+                        // if maps_menu was used, ensure it's freed
+                        if (active_menu == &maps_menu) {
+                            menu_free(&maps_menu);
+                        }
+                        active_menu = NULL;
                     } else {
                         // menu still active: re-render to reflect any state changes
-                        menu_render(&main_menu);
+                        menu_render(active_menu);
                     }
                 }
                 Sleep(150);
@@ -506,11 +588,13 @@ int main(void) {
     // Initialize menu and add items (provide callbacks)
     menu_init(&main_menu);
     menu_add_item(&main_menu, "Resume", action_resume);
-    menu_add_item(&main_menu, "Load map", action_load_map);
+    menu_add_item(&main_menu, "Load map", action_load_map); // now opens maps list
     menu_add_item(&main_menu, "Save map", action_save_map);
     menu_add_item(&main_menu, "Quit", action_quit);
     game_loop();
     menu_free(&main_menu);
+    // free maps_menu in case it is still allocated
+    menu_free(&maps_menu);
     free(output_screen.display);
     free(game_map.m);
     return 0;
