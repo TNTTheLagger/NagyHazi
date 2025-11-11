@@ -22,6 +22,7 @@ typedef struct {
     COORD dwCursorPosition;
     SMALL_RECT srWindow;
 } CONSOLE_SCREEN_BUFFER_INFO;
+#define strdup _strdup
 
 #define STD_OUTPUT_HANDLE  ((int)1)
 static int GetStdHandle(int dummy) { return 1; }
