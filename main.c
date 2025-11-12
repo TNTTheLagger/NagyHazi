@@ -135,6 +135,8 @@ static menu_t *active_menu = NULL;
 static bool menu_active = false;
 static volatile int request_quit = 0;  
 
+static char *current_map_file = NULL;
+
 void menu_init(menu_t *m) {
     m->count = 0;
     m->capacity = 4;
@@ -208,7 +210,32 @@ static void menu_remove_item_by_text(menu_t *m, const char *text) {
 }
 
 static void action_save_map(void) {
-     
+    if (game_map.m == NULL || game_map.width <= 0 || game_map.height <= 0) {
+        return;
+    }
+
+    const char *fname = current_map_file ? current_map_file : "map_saved.csv";
+    FILE *fp = fopen(fname, "w");
+    if (!fp) {
+        perror("Failed to open map file for saving");
+        return;
+    }
+
+    int px = (int)player.x;
+    int py = (int)player.y;
+
+    for (int y = 0; y < game_map.height; ++y) {
+        for (int x = 0; x < game_map.width; ++x) {
+            char ch = game_map.m[y * game_map.width + x];
+            if (x == px && y == py) ch = 'X';
+            fputc(ch, fp);
+            if (x + 1 < game_map.width) fputc(',', fp);
+        }
+        fputc('\n', fp);
+    }
+
+    fclose(fp);
+
     menu_active = false;
     active_menu = NULL;
 }
@@ -250,13 +277,15 @@ static void action_load_selected_map(void) {
     free(game_map.m);
     game_map = load_map(fname);
     setup_player_global();
-     
+    if (current_map_file) { free(current_map_file); current_map_file = NULL; }
+    if (fname) current_map_file = strdup(fname);
+
     ensure_resume_state();
-     
+
     menu_active = false;
     active_menu = NULL;
     menu_free(&maps_menu);
-     
+
     if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
 }
 
@@ -716,5 +745,6 @@ int main(void) {
     menu_free(&maps_menu);
     free(output_screen.display);
     free(game_map.m);
+    if (current_map_file) free(current_map_file);
     return 0;
 }
