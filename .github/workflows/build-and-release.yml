@@ -29,7 +29,7 @@ jobs:
         id: find_exe
         shell: powershell
         run: |
-          $exe = Get-ChildItem -Path "${{ github.workspace }}" -Filter '3dGame-Windows.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          $exe = Get-ChildItem -Path "${{ github.workspace }}" -Filter '3dGame.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
           if (-not $exe) {
             Write-Error "No executable found in workspace"; exit 1
           }
@@ -114,7 +114,7 @@ jobs:
       - name: Find built executable
         id: find_exe
         run: |
-          exe=$(find $GITHUB_WORKSPACE -type f -name "3dGame-linux" | head -n 1)
+          exe=$(find $GITHUB_WORKSPACE -type f -name "3dGame" | head -n 1)
           if [ -z "$exe" ]; then
             echo "No executable found" >&2
             exit 1
