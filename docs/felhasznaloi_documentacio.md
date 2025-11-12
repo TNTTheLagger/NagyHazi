@@ -29,11 +29,10 @@ No graphics card or GUI is required — the program runs entirely in the command
 ### **Operating Systems:**
 
 * Windows 10 or later
-* Linux (Debian, Ubuntu, etc.)
 
 ### **Minimum Hardware:**
 
-* Dual-core CPU
+* Single-core CPU
 * 1 GB RAM
 * Console terminal with at least 80x24 character display
 
@@ -54,11 +53,6 @@ No graphics card or GUI is required — the program runs entirely in the command
 
       ```
       raycaster.exe
-      ```
-    * On **Linux**:
-
-      ```
-      ./raycaster
       ```
 
 The main menu will appear automatically when the program starts.

@@ -97,41 +97,41 @@ jobs:
           asset_name: 3dGame-Windows.exe
           asset_content_type: application/octet-stream
 
-  build-and-release-linux:
-    runs-on: ubuntu-latest
-    needs: build-and-release-windows  # ensures both use same release tag
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up build directory
-        run: mkdir -p build
-
-      - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build --config Release --target 3dGame
-
-      - name: Find built executable
-        id: find_exe
-        run: |
-          exe=$(find $GITHUB_WORKSPACE -type f -name "3dGame" | head -n 1)
-          if [ -z "$exe" ]; then
-            echo "No executable found" >&2
-            exit 1
-          fi
-          echo "exe_path=$exe" >> $GITHUB_OUTPUT
-
-      - name: Upload Linux executable
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.build-and-release-windows.outputs.upload_url }}
-          asset_path: ${{ steps.find_exe.outputs.exe_path }}
-          asset_name: 3dGame-Linux
-          asset_content_type: application/octet-stream
+#  build-and-release-linux:
+#    runs-on: ubuntu-latest
+#    needs: build-and-release-windows  # ensures both use same release tag
+#
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#        with:
+#          fetch-depth: 0
+#
+#      - name: Set up build directory
+#        run: mkdir -p build
+#
+#      - name: Configure CMake
+#        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+#
+#      - name: Build
+#        run: cmake --build build --config Release --target 3dGame
+#
+#      - name: Find built executable
+#        id: find_exe
+#        run: |
+#          exe=$(find $GITHUB_WORKSPACE -type f -name "3dGame" | head -n 1)
+#          if [ -z "$exe" ]; then
+#            echo "No executable found" >&2
+#            exit 1
+#          fi
+#          echo "exe_path=$exe" >> $GITHUB_OUTPUT
+#
+#      - name: Upload Linux executable
+#        uses: actions/upload-release-asset@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          upload_url: ${{ needs.build-and-release-windows.outputs.upload_url }}
+#          asset_path: ${{ steps.find_exe.outputs.exe_path }}
+#          asset_name: 3dGame-Linux
+#          asset_content_type: application/octet-stream
