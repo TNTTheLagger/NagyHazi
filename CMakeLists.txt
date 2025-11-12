@@ -4,4 +4,7 @@ project(3dGame C)
 set(CMAKE_C_STANDARD 23)
 
 add_executable(3dGame main.c)
-target_link_libraries(3dGame m)
+
+if (UNIX)
+    target_link_libraries(3dGame m)
+endif()
