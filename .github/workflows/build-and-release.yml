@@ -13,6 +13,11 @@ jobs:
   build-and-release-windows:
     runs-on: windows-latest
 
+    # Export outputs so Linux job can use them
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      new_tag: ${{ steps.bump.outputs.new_tag }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -126,8 +131,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # use the same tag as Windows build
-          upload_url: ${{ needs.build-and-release-windows.outputs.create_release_upload_url || steps.create_release.outputs.upload_url }}
+          upload_url: ${{ needs.build-and-release-windows.outputs.upload_url }}
           asset_path: ${{ steps.find_exe.outputs.exe_path }}
           asset_name: 3dGame-Linux
           asset_content_type: application/octet-stream
