@@ -3,8 +3,17 @@ project(3dGame C)
 
 set(CMAKE_C_STANDARD 23)
 
-add_executable(3dGame main.c)
+add_executable(3dGame
+        src/main.c
+        src/platform.c
+        src/screen.c
+        src/map.c
+        src/player.c
+        src/menu.c
+        src/render.c
+
+)
 
 if (UNIX)
-    target_link_libraries(3dGame m)
+    target_compile_definitions(3dGame PRIVATE "_POSIX")
 endif()
