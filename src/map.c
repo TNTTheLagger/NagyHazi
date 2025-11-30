@@ -1,3 +1,5 @@
+#include "debugmalloc.h"
+
 #include "map.h"
 #include "globals.h"
 #include <stdio.h>
@@ -31,6 +33,7 @@ map load_map(char file_path[]) {
     while (fgets(buff, sizeof(buff), fp)) {
         m.height++;
     }
+
 
     m.m = malloc(m.width * m.height * sizeof(char));
     if (m.m == NULL) {

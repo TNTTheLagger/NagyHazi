@@ -14,6 +14,7 @@
 #include "player.h"
 #include "screen.h"
 
+extern bool running;
 extern map game_map;
 extern player_model player;
 extern screen output_screen;

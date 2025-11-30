@@ -1,3 +1,5 @@
+#include "debugmalloc.h"
+
 #include "screen.h"
 #include "platform.h"
 #include <stdlib.h>
@@ -14,6 +16,7 @@ void get_screen_size() {
     platform_get_console_size(&cols, &rows);
     output_screen.width = cols - 1;
     output_screen.height = rows;
+    if (output_screen.display) free(output_screen.display);
     output_screen.display = malloc(output_screen.width * output_screen.height * sizeof(char));
 }
 
@@ -26,27 +29,39 @@ void update_screen_size() {
     output_screen.display = malloc(output_screen.width * output_screen.height * sizeof(char));
 }
 
+static char *render_buf = NULL;
+static int render_buf_size = 0;
+
 void render_screen() {
-    // clear screen and write buffer with newlines
     fwrite("\x1b[H\x1b[J", 1, 6, stdout);
 
     int total_size = output_screen.width * output_screen.height;
-    static char *buf = NULL;
-    static int buf_size = 0;
+    int needed = total_size + output_screen.height;
 
-    int needed = total_size + output_screen.height; // account for newlines
-    if (buf_size < needed) {
-        buf = realloc(buf, needed);
-        buf_size = needed;
+    if (render_buf_size < needed) {
+        char *tmp = realloc(render_buf, needed);
+        if (!tmp) return; // allocation failed, keep old buffer
+        render_buf = tmp;
+        render_buf_size = needed;
     }
 
-    char *dst = buf;
+    char *dst = render_buf;
     for (int y = 0; y < output_screen.height; y++) {
         memcpy(dst, &output_screen.display[y * output_screen.width], output_screen.width);
         dst += output_screen.width;
         *dst++ = '\n';
     }
 
-    fwrite(buf, 1, dst - buf, stdout);
+    fwrite(render_buf, 1, dst - render_buf, stdout);
     fflush(stdout);
+}
+
+void free_screen() {
+    if (output_screen.display) {
+        free(output_screen.display);
+        output_screen.display = NULL;
+    }
+    free(render_buf);
+    render_buf = NULL;
+    render_buf_size = 0;
 }

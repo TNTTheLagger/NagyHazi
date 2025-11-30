@@ -1,3 +1,5 @@
+#include "debugmalloc.h"
+
 #include "platform.h"
 
 #ifdef _WIN32

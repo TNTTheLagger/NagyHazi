@@ -1,3 +1,5 @@
+#include "debugmalloc.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -10,6 +12,7 @@
 #include "player.h"
 #include "render.h"
 
+bool running = false;
 
 int main(void) {
     get_screen_size();
@@ -30,7 +33,9 @@ int main(void) {
     uint64_t tp1;
     int f_counter = 0;
 
-    while (1) {
+    running = true;
+
+    while (running) {
         if (menu_active && active_menu) {
             menu_update_input();
             sleep_ms(20);
@@ -53,6 +58,7 @@ int main(void) {
             active_menu = &main_menu;
             menu_render(active_menu);
             sleep_ms(200);
+            continue;
         }
         tp1 = current_timestamp_ms();
         elapsed_time = tp1 - tp2;
@@ -65,6 +71,10 @@ int main(void) {
             else sleep_ms(FRAME_TIME_MS - elapsed_time);
         }
     }
+
+    if (game_map.m) free(game_map.m);
+    free_menus();
+    free_screen();
 
     return 0;
 }

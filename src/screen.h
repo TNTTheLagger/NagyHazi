@@ -14,5 +14,6 @@ typedef struct screen {
 void get_screen_size();
 void update_screen_size();
 void render_screen();
+void free_screen();
 
 #endif //INC_3DGAME_SCREEN_H

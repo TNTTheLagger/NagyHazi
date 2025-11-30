@@ -1,3 +1,5 @@
+#include "debugmalloc.h"
+
 #include "menu.h"
 #include "globals.h"
 #include "map.h"
@@ -20,7 +22,20 @@ bool menu_active = false;
 static volatile int request_quit = 0;
 static char *current_map_file = NULL;
 
+void free_menus() {
+    if (current_map_file) {
+        free(current_map_file);
+        current_map_file = NULL;
+    }
+    menu_free(&main_menu);
+    menu_free(&maps_menu);
+}
+
 void menu_init(menu_t *m) {
+    if (m->items) {
+        for (int i = 0; i < m->count; ++i) free(m->items[i].text);
+        free(m->items);
+    }
     m->count = 0;
     m->capacity = 4;
     m->selected = 0;
@@ -240,7 +255,7 @@ void menu_update_input() {
         if (active_menu->count > 0) {
             menu_action_t act = active_menu->items[active_menu->selected].action;
             if (act) act();
-            if (request_quit) exit(0);
+            if (request_quit) running = false;
             if (!menu_active) {
                 if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
                 if (active_menu == &maps_menu) {

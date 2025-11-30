@@ -31,5 +31,6 @@ void menu_free(menu_t *m);
 void menu_add_item(menu_t *m, const char *text, menu_action_t action);
 void menu_render(menu_t *m);
 void setup_main_menu();
+void free_menus();
 
 #endif //INC_3DGAME_MENU_H

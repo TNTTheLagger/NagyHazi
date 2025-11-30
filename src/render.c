@@ -1,3 +1,5 @@
+#include "debugmalloc.h"
+
 #include "render.h"
 #include "globals.h"
 #include <math.h>

@@ -1,3 +1,5 @@
+#include "debugmalloc.h"
+
 #include "player.h"
 #include "globals.h"
 #include "platform.h"
