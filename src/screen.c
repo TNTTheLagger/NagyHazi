@@ -1,3 +1,4 @@
+//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #include "debugmalloc.h"
 
 #include "screen.h"
@@ -6,7 +7,6 @@
 #include <string.h>
 #include <stdio.h>
 
-// note: output_screen is defined in globals.c (via globals.h extern)
 #include "globals.h"
 
 screen output_screen;
@@ -40,7 +40,7 @@ void render_screen() {
 
     if (render_buf_size < needed) {
         char *tmp = realloc(render_buf, needed);
-        if (!tmp) return; // allocation failed, keep old buffer
+        if (!tmp) return;
         render_buf = tmp;
         render_buf_size = needed;
     }

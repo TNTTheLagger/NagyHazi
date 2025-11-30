@@ -1,7 +1,4 @@
-//
-// Created by TNT on 11/30/2025.
-//
-
+//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #ifndef INC_3DGAME_PLAYER_H
 #define INC_3DGAME_PLAYER_H
 

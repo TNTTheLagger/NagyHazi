@@ -1,3 +1,4 @@
+//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #include "debugmalloc.h"
 
 #include "map.h"
@@ -18,7 +19,6 @@ map load_map(char file_path[]) {
 
     char buff[100000];
 
-    // determine width from first line
     if (fgets(buff, sizeof(buff), fp)) {
         for (int i = 0; buff[i] != '\0'; i++) {
             if (buff[i] == ',') {
@@ -28,12 +28,11 @@ map load_map(char file_path[]) {
         m.width++;
     }
 
-    // determine height
     rewind(fp);
     while (fgets(buff, sizeof(buff), fp)) {
         m.height++;
     }
-
+    m.height--;
 
     m.m = malloc(m.width * m.height * sizeof(char));
     if (m.m == NULL) {
@@ -90,6 +89,7 @@ void save_map_to_file(const char *fname) {
         }
         fputc('\n', fp);
     }
+    fputs("NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt",fp);
 
     fclose(fp);
 }

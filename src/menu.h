@@ -1,11 +1,8 @@
-//
-// Created by TNT on 11/30/2025.
-//
-
+//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #ifndef INC_3DGAME_MENU_H
 #define INC_3DGAME_MENU_H
 
-#include "menu.h" // placeholder to satisfy tools if needed
+#include "menu.h"
 #include <stdbool.h>
 
 typedef void (*menu_action_t)(void);

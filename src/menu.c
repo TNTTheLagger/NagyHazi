@@ -1,3 +1,4 @@
+//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #include "debugmalloc.h"
 
 #include "menu.h"
@@ -197,7 +198,6 @@ static void action_show_maps(void) {
             const char *name = entry->d_name;
             size_t len = strlen(name);
 
-            // Check if filename ends with .csv
             if (len > 4 && strcmp(name + len - 4, ".csv") == 0) {
                 menu_add_item(&maps_menu, name, action_load_selected_map);
             }
@@ -205,7 +205,6 @@ static void action_show_maps(void) {
         closedir(d);
     }
 
-    // If only "< Back" exists
     if (maps_menu.count == 1) {
         menu_add_item(&maps_menu, "No maps found", NULL);
     }

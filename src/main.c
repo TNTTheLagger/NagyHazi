@@ -1,3 +1,4 @@
+//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #include "debugmalloc.h"
 
 #include <stdio.h>
@@ -64,7 +65,6 @@ int main(void) {
         elapsed_time = tp1 - tp2;
         tp2 = tp1;
 
-        // cap frame time roughly to 60fps
         const int FRAME_TIME_MS = 1000 / 60;
         if (elapsed_time < FRAME_TIME_MS) {
             if (FRAME_TIME_MS - elapsed_time < 5) sleep_ms(5);

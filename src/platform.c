@@ -1,3 +1,4 @@
+//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #include "debugmalloc.h"
 
 #include "platform.h"
@@ -59,10 +60,6 @@ uint64_t current_timestamp_ms(void) {
 
 void sleep_ms(int ms) { usleep(ms * 1000); }
 
-// Non-blocking key input: original code used GetAsyncKeyState which has no
-// simple equivalent on Unix without significant extra code (termios + polling).
-// For simplicity we return 0; menu/game logic will continue to work but
-// key-handling may need platform-specific enhancements if you run on Linux.
 short platform_get_key_state(int k) { (void)k; return 0; }
 
 #endif

@@ -1,3 +1,4 @@
+//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #include "debugmalloc.h"
 
 #include "player.h"
@@ -18,7 +19,6 @@ void setup_player_global() {
 }
 
 void update_player_movement(double elapsed_ms) {
-    // elapsed_ms is milliseconds
     if (platform_get_key_state('W') & 0x8000) {
         player.x += sin(player.a) * player.speed * elapsed_ms;
         player.y += cos(player.a) * player.speed * elapsed_ms;
