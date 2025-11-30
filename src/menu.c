@@ -10,7 +10,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <dirent.h>
+#endif
+
 
 #define KEY_UP    'w'
 #define KEY_DOWN  's'
@@ -208,6 +214,19 @@ static void action_show_maps(void) {
     menu_init(&maps_menu);
     menu_add_item(&maps_menu, "< Back", action_maps_back);
 
+#ifdef _WIN32
+    WIN32_FIND_DATA fdFile;
+    HANDLE hFind = FindFirstFile("*.csv", &fdFile);
+
+    if (hFind != INVALID_HANDLE_VALUE) {
+        do {
+            if (!(fdFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                menu_add_item(&maps_menu, fdFile.cFileName, action_load_selected_map);
+            }
+        } while (FindNextFile(hFind, &fdFile));
+        FindClose(hFind);
+    }
+#else
     DIR *d = opendir(".");
     if (d) {
         struct dirent *entry;
@@ -220,6 +239,7 @@ static void action_show_maps(void) {
         }
         closedir(d);
     }
+#endif
 
     if (maps_menu.count == 1) {
         menu_add_item(&maps_menu, "No maps found", NULL);
