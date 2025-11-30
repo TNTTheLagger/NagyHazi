@@ -148,7 +148,6 @@ static void action_load_selected_map(void) {
     active_menu = NULL;
     menu_free(&maps_menu);
 
-    // Clear screen row by row
     if (output_screen.display) {
         for (int y = 0; y < output_screen.height; y++)
             memset(output_screen.display[y], ' ', output_screen.width);
@@ -161,7 +160,6 @@ static void action_maps_back(void) {
     active_menu = &main_menu;
     menu_active = true;
 
-    // Clear screen row by row
     if (output_screen.display) {
         for (int y = 0; y < output_screen.height; y++)
             memset(output_screen.display[y], ' ', output_screen.width);
@@ -173,7 +171,6 @@ static void action_maps_back(void) {
 void menu_render(menu_t *m) {
     if (!m || m->count == 0) return;
 
-    // Clear screen row by row
     for (int y = 0; y < output_screen.height; y++)
         memset(output_screen.display[y], ' ', output_screen.width);
 
@@ -231,7 +228,6 @@ static void action_show_maps(void) {
     active_menu = &maps_menu;
     menu_active = true;
 
-    // Clear screen row by row
     if (output_screen.display) {
         for (int y = 0; y < output_screen.height; y++)
             memset(output_screen.display[y], ' ', output_screen.width);
@@ -283,7 +279,6 @@ void menu_update_input() {
             if (request_quit) running = false;
 
             if (!menu_active) {
-                // Clear screen row by row
                 if (output_screen.display) {
                     for (int y = 0; y < output_screen.height; y++)
                         memset(output_screen.display[y], ' ', output_screen.width);
