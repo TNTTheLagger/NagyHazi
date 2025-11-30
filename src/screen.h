@@ -5,7 +5,7 @@
 typedef struct screen {
     int width;
     int height;
-    char *display;
+    char **display;  // 2D array of characters
 } screen;
 
 void get_screen_size();

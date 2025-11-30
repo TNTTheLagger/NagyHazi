@@ -134,9 +134,11 @@ static void action_load_selected_map(void) {
     if (idx < 0 || idx >= maps_menu.count) return;
     char *fname = maps_menu.items[idx].text;
     if (!fname) return;
+
     free(game_map.m);
     game_map = load_map(fname);
     setup_player_global();
+
     if (current_map_file) { free(current_map_file); current_map_file = NULL; }
     if (fname) current_map_file = strdup(fname);
 
@@ -146,43 +148,61 @@ static void action_load_selected_map(void) {
     active_menu = NULL;
     menu_free(&maps_menu);
 
-    if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+    // Clear screen row by row
+    if (output_screen.display) {
+        for (int y = 0; y < output_screen.height; y++)
+            memset(output_screen.display[y], ' ', output_screen.width);
+    }
 }
 
-void menu_render(menu_t * menu);
+void menu_render(menu_t *menu);
 
 static void action_maps_back(void) {
     active_menu = &main_menu;
     menu_active = true;
-    if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+
+    // Clear screen row by row
+    if (output_screen.display) {
+        for (int y = 0; y < output_screen.height; y++)
+            memset(output_screen.display[y], ' ', output_screen.width);
+    }
+
     menu_render(active_menu);
 }
 
 void menu_render(menu_t *m) {
     if (!m || m->count == 0) return;
-    memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+
+    // Clear screen row by row
+    for (int y = 0; y < output_screen.height; y++)
+        memset(output_screen.display[y], ' ', output_screen.width);
+
     int maxw = 0;
     for (int i = 0; i < m->count; ++i) {
         int len = (int)strlen(m->items[i].text);
         if (len > maxw) maxw = len;
     }
+
     int total_height = m->count;
     int start_y = (output_screen.height - total_height) / 2;
+
     for (int i = 0; i < m->count; ++i) {
         const char *it = m->items[i].text;
         int len = (int)strlen(it);
         int start_x = (output_screen.width - maxw) / 2;
         int y = start_y + i;
         if (y < 0 || y >= output_screen.height) continue;
-        int base = y * output_screen.width + start_x;
+
         if (i == m->selected) {
-            if (start_x > 1) output_screen.display[base - 2] = '>';
-            if (start_x + maxw + 1 < output_screen.width) output_screen.display[base + len + 1] = '<';
+            if (start_x > 1) output_screen.display[y][start_x - 2] = '>';
+            if (start_x + maxw + 1 < output_screen.width) output_screen.display[y][start_x + len + 1] = '<';
         }
+
         for (int x = 0; x < len && (start_x + x) < output_screen.width; ++x) {
-            output_screen.display[base + x] = it[x];
+            output_screen.display[y][start_x + x] = it[x];
         }
     }
+
     render_screen();
 }
 
@@ -197,7 +217,6 @@ static void action_show_maps(void) {
         while ((entry = readdir(d)) != NULL) {
             const char *name = entry->d_name;
             size_t len = strlen(name);
-
             if (len > 4 && strcmp(name + len - 4, ".csv") == 0) {
                 menu_add_item(&maps_menu, name, action_load_selected_map);
             }
@@ -212,8 +231,11 @@ static void action_show_maps(void) {
     active_menu = &maps_menu;
     menu_active = true;
 
-    if (output_screen.display)
-        memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+    // Clear screen row by row
+    if (output_screen.display) {
+        for (int y = 0; y < output_screen.height; y++)
+            memset(output_screen.display[y], ' ', output_screen.width);
+    }
 
     menu_render(active_menu);
 }
@@ -221,6 +243,7 @@ static void action_show_maps(void) {
 static void action_load_map(void) {
     action_show_maps();
 }
+
 static void action_quit(void) {
     request_quit = 1;
 }
@@ -238,28 +261,34 @@ void setup_main_menu() {
 
 void menu_update_input() {
     if (!active_menu) return;
+
     if ((platform_get_key_state(VK_UP) & 0x8000) || (platform_get_key_state('W') & 0x8000)) {
         active_menu->selected--;
         if (active_menu->selected < 0) active_menu->selected = active_menu->count - 1;
         menu_render(active_menu);
         sleep_ms(100);
     }
+
     if ((platform_get_key_state(VK_DOWN) & 0x8000) || (platform_get_key_state('S') & 0x8000)) {
         active_menu->selected++;
         if (active_menu->selected >= active_menu->count) active_menu->selected = 0;
         menu_render(active_menu);
         sleep_ms(100);
     }
+
     if (platform_get_key_state(VK_RETURN) & 0x8000) {
         if (active_menu->count > 0) {
             menu_action_t act = active_menu->items[active_menu->selected].action;
             if (act) act();
             if (request_quit) running = false;
+
             if (!menu_active) {
-                if (output_screen.display) memset(output_screen.display, ' ', output_screen.width * output_screen.height);
-                if (active_menu == &maps_menu) {
-                    menu_free(&maps_menu);
+                // Clear screen row by row
+                if (output_screen.display) {
+                    for (int y = 0; y < output_screen.height; y++)
+                        memset(output_screen.display[y], ' ', output_screen.width);
                 }
+                if (active_menu == &maps_menu) menu_free(&maps_menu);
                 active_menu = NULL;
             } else {
                 menu_render(active_menu);

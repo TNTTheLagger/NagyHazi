@@ -39,22 +39,23 @@ void calc_column(int x) {
             hit_wall = true;
         }
     }
+
     int ceiling = (double)(output_screen.height / 2.0) - output_screen.height / distance_to_wall;
     int floor = output_screen.height - ceiling;
 
-    char shade  = get_shade(distance_to_wall);
-    for (int y = 0;y < output_screen.height;y++) {
+    char shade = get_shade(distance_to_wall);
+    for (int y = 0; y < output_screen.height; y++) {
         if (y < ceiling) {
-            output_screen.display[y * output_screen.width + x] = ' ';
+            output_screen.display[y][x] = ' ';
         } else if (y > ceiling && y <= floor) {
-            output_screen.display[y * output_screen.width + x] = shade;
+            output_screen.display[y][x] = shade;
         } else {
             double b = 1.0 - (y - output_screen.height / 2.0) / (output_screen.height / 2.0);
             int index = (int)(b * (FLOOR_SHADING_COUNT - 1));
             if (index < 0) index = 0;
             if (index >= FLOOR_SHADING_COUNT) index = FLOOR_SHADING_COUNT - 1;
             index = FLOOR_SHADING_COUNT - 1 - index;
-            output_screen.display[y * output_screen.width + x] = FLOOR_SHADING[index];
+            output_screen.display[y][x] = FLOOR_SHADING[index];
         }
     }
 }

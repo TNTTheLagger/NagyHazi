@@ -24,8 +24,10 @@ int main(void) {
 
     menu_active = true;
     active_menu = &main_menu;
+
     if (output_screen.display) {
-        memset(output_screen.display, ' ', output_screen.width * output_screen.height);
+        for (int y = 0; y < output_screen.height; y++)
+            memset(output_screen.display[y], ' ', output_screen.width);
         menu_render(active_menu);
     }
 
@@ -53,14 +55,18 @@ int main(void) {
 
         render_frame();
         render_screen();
-        memset(output_screen.display, ' ', output_screen.width * output_screen.height);
-        if (platform_get_key_state(VK_ESCAPE)&&!active_menu) {
+
+        for (int y = 0; y < output_screen.height; y++)
+            memset(output_screen.display[y], ' ', output_screen.width);
+
+        if (platform_get_key_state(VK_ESCAPE) && !active_menu) {
             menu_active = true;
             active_menu = &main_menu;
             menu_render(active_menu);
             sleep_ms(200);
             continue;
         }
+
         tp1 = current_timestamp_ms();
         elapsed_time = tp1 - tp2;
         tp2 = tp1;

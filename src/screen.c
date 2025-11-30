@@ -14,29 +14,54 @@ screen output_screen;
 void get_screen_size() {
     int cols = 80, rows = 24;
     platform_get_console_size(&cols, &rows);
+
     output_screen.width = cols - 1;
     output_screen.height = rows;
-    if (output_screen.display) free(output_screen.display);
-    output_screen.display = malloc(output_screen.width * output_screen.height * sizeof(char));
+
+    // Free old display if it exists
+    if (output_screen.display) {
+        for (int i = 0; i < output_screen.height; i++) {
+            free(output_screen.display[i]);
+        }
+        free(output_screen.display);
+    }
+
+    // Allocate new 2D array
+    output_screen.display = malloc(output_screen.height * sizeof(char*));
+    for (int i = 0; i < output_screen.height; i++) {
+        output_screen.display[i] = malloc(output_screen.width * sizeof(char));
+    }
 }
 
 void update_screen_size() {
     int cols = 80, rows = 24;
     platform_get_console_size(&cols, &rows);
+
+    // Free old display
+    if (output_screen.display) {
+        for (int i = 0; i < output_screen.height; i++) {
+            free(output_screen.display[i]);
+        }
+        free(output_screen.display);
+    }
+
     output_screen.width = cols - 1;
     output_screen.height = rows;
-    free(output_screen.display);
-    output_screen.display = malloc(output_screen.width * output_screen.height * sizeof(char));
-}
 
+    // Allocate new 2D array
+    output_screen.display = malloc(output_screen.height * sizeof(char*));
+    for (int i = 0; i < output_screen.height; i++) {
+        output_screen.display[i] = malloc(output_screen.width * sizeof(char));
+    }
+}
 static char *render_buf = NULL;
 static int render_buf_size = 0;
 
 void render_screen() {
-    fwrite("\x1b[H\x1b[J", 1, 6, stdout);
+    fwrite("\x1b[H\x1b[J", 1, 6, stdout); // Clear screen
 
     int total_size = output_screen.width * output_screen.height;
-    int needed = total_size + output_screen.height;
+    int needed = total_size + output_screen.height; // +height for newlines
 
     if (render_buf_size < needed) {
         char *tmp = realloc(render_buf, needed);
@@ -47,7 +72,7 @@ void render_screen() {
 
     char *dst = render_buf;
     for (int y = 0; y < output_screen.height; y++) {
-        memcpy(dst, &output_screen.display[y * output_screen.width], output_screen.width);
+        memcpy(dst, output_screen.display[y], output_screen.width);
         dst += output_screen.width;
         *dst++ = '\n';
     }
@@ -58,9 +83,13 @@ void render_screen() {
 
 void free_screen() {
     if (output_screen.display) {
+        for (int i = 0; i < output_screen.height; i++) {
+            free(output_screen.display[i]); // Free each row
+        }
         free(output_screen.display);
         output_screen.display = NULL;
     }
+
     free(render_buf);
     render_buf = NULL;
     render_buf_size = 0;
