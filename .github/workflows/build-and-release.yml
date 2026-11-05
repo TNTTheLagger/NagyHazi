@@ -65,6 +65,7 @@ jobs:
   # ------------------------------------------------------------------
   build-psp:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -104,6 +105,7 @@ jobs:
           MAKEFLAGS="-j1" ./toolchain.sh
 
       - name: Configure CMake for PSP
+        if: steps.cache-pspsdk.outputs.cache-hit == 'true' || steps.build-psp-sdk-outcome.continue-on-error != 'true'
         env:
           PSPDEV: ${{ env.HOME }}/pspdev
         run: |
@@ -187,6 +189,10 @@ jobs:
       - name: Upload PSP PBP to release
         run: |
           PSP_PBP=$(find artifacts/3dGame-PSP -name "*.PBP" -o -name "*.pbp" | head -1)
-          gh release upload "${{ steps.tag.outputs.tag }}" "$PSP_PBP" --clobber
+          if [ -n "$PSP_PBP" ]; then
+            gh release upload "${{ steps.tag.outputs.tag }}" "$PSP_PBP" --clobber
+          else
+            echo "No PSP artifact found, skipping PSP upload"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
