@@ -91,7 +91,8 @@ jobs:
 
       - name: Upload Windows executable to release
         run: |
-          gh release upload "${{ needs.create-release.outputs.tag }}" "${{ steps.find_exe.outputs.exe_path }}" --name 3dGame-Windows.exe --clobber
+          cp "${{ steps.find_exe.outputs.exe_path }}" ./3dGame-Windows.exe
+          gh release upload "${{ needs.create-release.outputs.tag }}" ./3dGame-Windows.exe --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -122,7 +123,8 @@ jobs:
 
       - name: Upload Linux executable to release
         run: |
-          gh release upload "${{ needs.create-release.outputs.tag }}" "${{ steps.find_exe.outputs.exe_path }}" --name 3dGame-Linux --clobber
+          cp "${{ steps.find_exe.outputs.exe_path }}" ./3dGame-Linux
+          gh release upload "${{ needs.create-release.outputs.tag }}" ./3dGame-Linux --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -192,6 +194,7 @@ jobs:
 
       - name: Upload PSP PBP to release
         run: |
-          gh release upload "${{ needs.create-release.outputs.tag }}" "${{ steps.find_pbp.outputs.pbp_path }}" --name 3dGame-PSP.PBP --clobber
+          cp "${{ steps.find_pbp.outputs.pbp_path }}" ./3dGame-PSP.PBP
+          gh release upload "${{ needs.create-release.outputs.tag }}" ./3dGame-PSP.PBP --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
