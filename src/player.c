@@ -1,5 +1,7 @@
-//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
+// NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
+#ifdef ENABLE_DEBUGMALLOC
 #include "debugmalloc.h"
+#endif
 
 #include "player.h"
 #include "globals.h"
@@ -8,7 +10,8 @@
 
 player_model player;
 
-void setup_player_global() {
+void setup_player_global(void)
+{
     player.x = game_map.player_start_x + 0.5;
     player.y = game_map.player_start_y + 0.5;
     player.fov = 3.14159 / 3.0;
@@ -18,29 +21,42 @@ void setup_player_global() {
     player.render_distance = 10;
 }
 
-void update_player_movement(double elapsed_ms) {
-    if (platform_get_key_state('W') & 0x8000) {
-        player.x += sin(player.a) * player.speed * elapsed_ms;
-        player.y += cos(player.a) * player.speed * elapsed_ms;
-        if (game_map.m[(int)player.y * game_map.width + (int)player.x] == '#') {
-            player.x -= sin(player.a) * player.speed * elapsed_ms;
-            player.y -= cos(player.a) * player.speed * elapsed_ms;
+void update_player_movement(double elapsed_ms)
+{
+    int keys = platform_get_keys();
+
+    double move_step = player.speed * elapsed_ms;
+    double turn_step = player.turn_speed * elapsed_ms;
+
+    /* Forward */
+    if (keys & KEY_UP) {
+        double nx = player.x + sin(player.a) * move_step;
+        double ny = player.y + cos(player.a) * move_step;
+
+        if (game_map.m[(int)ny * game_map.width + (int)nx] != '#') {
+            player.x = nx;
+            player.y = ny;
         }
     }
 
-    if (platform_get_key_state('S') & 0x8000) {
-        player.x -= sin(player.a) * player.speed * elapsed_ms;
-        player.y -= cos(player.a) * player.speed * elapsed_ms;
-        if (game_map.m[(int)player.y * game_map.width + (int)player.x] == '#') {
-            player.x += sin(player.a) * player.speed * elapsed_ms;
-            player.y += cos(player.a) * player.speed * elapsed_ms;
+    /* Backward */
+    if (keys & KEY_DOWN) {
+        double nx = player.x - sin(player.a) * move_step;
+        double ny = player.y - cos(player.a) * move_step;
+
+        if (game_map.m[(int)ny * game_map.width + (int)nx] != '#') {
+            player.x = nx;
+            player.y = ny;
         }
     }
 
-    if (platform_get_key_state('A') & 0x8000) {
-        player.a -= player.turn_speed * elapsed_ms;
+    /* Turn left */
+    if (keys & KEY_LEFT) {
+        player.a -= turn_step;
     }
-    if (platform_get_key_state('D') & 0x8000) {
-        player.a += player.turn_speed * elapsed_ms;
+
+    /* Turn right */
+    if (keys & KEY_RIGHT) {
+        player.a += turn_step;
     }
 }

@@ -1,8 +1,7 @@
-//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
+// NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #ifndef INC_3DGAME_MENU_H
 #define INC_3DGAME_MENU_H
 
-#include "menu.h"
 #include <stdbool.h>
 
 typedef void (*menu_action_t)(void);
@@ -29,5 +28,6 @@ void menu_add_item(menu_t *m, const char *text, menu_action_t action);
 void menu_render(menu_t *m);
 void setup_main_menu();
 void free_menus();
+void menu_update_input(void);
 
-#endif //INC_3DGAME_MENU_H
+#endif // INC_3DGAME_MENU_H

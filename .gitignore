@@ -1,0 +1,6 @@
+build/
+*.exe
+*.PBP
+EBOOT.PBP
+.vscode/
+.idea/

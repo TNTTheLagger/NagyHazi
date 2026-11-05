@@ -1,5 +1,7 @@
-//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
+// NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
+#ifdef ENABLE_DEBUGMALLOC
 #include "debugmalloc.h"
+#endif
 
 #include "render.h"
 #include "globals.h"
