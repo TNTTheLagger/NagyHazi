@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build
 
 on:
   push:
@@ -7,67 +7,13 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  # ------------------------------------------------------------------
-  # Create a single GitHub release (bumped patch version) that every
-  # build job uploads its assets to.
-  # ------------------------------------------------------------------
-  create-release:
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.tag.outputs.tag }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Determine next release tag
-        id: tag
-        run: |
-          set -e
-          # Use latest git tag (not latest release) to avoid conflicts
-          latest_tag=$(git tag --sort=-v:refname | head -n 1 || echo "0.0.0")
-          latest_tag="${latest_tag#v}"
-          IFS='.' read -r major minor patch <<< "$latest_tag"
-          : "${major:=0}" "${minor:=0}" "${patch:=0}"
-          new_patch=$((patch + 1))
-          new_tag="${major}.${minor}.${new_patch}"
-          echo "tag=$new_tag" >> $GITHUB_OUTPUT
-
-          commit_msg=$(git log -1 --pretty=%B | tr '\n' ' ' | sed 's/  */ /g')
-          commit_url="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
-          {
-            echo "You need to have a [map.csv](https://github.com/TNTTheLagger/NagyHazi/blob/master/Extras/map.csv) file next to the exe when running it."
-            echo
-            echo "Latest commit: [$commit_msg]($commit_url)"
-            echo
-            echo "Builds:"
-            echo "- 3dGame-Windows.exe"
-            echo "- 3dGame-Linux"
-            echo "- 3dGame-PSP.PBP (EBOOT.PBP)"
-          } > release_body.txt
-          echo "Created release body for tag $new_tag"
-
-      - name: Create GitHub release
-        id: create_release
-        run: |
-          gh release create "${{ steps.tag.outputs.tag }}" \
-            --title "${{ steps.tag.outputs.tag }}" \
-            --notes-file release_body.txt \
-            --draft=false \
-            --prerelease=false
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   # ------------------------------------------------------------------
   # Windows desktop build
   # ------------------------------------------------------------------
   build-windows:
-    needs: create-release
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -81,26 +27,18 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --target 3dGame
 
-      - name: Locate Windows executable
-        id: find_exe
-        shell: powershell
-        run: |
-          $exe = Get-ChildItem -Path "${{ github.workspace }}" -Filter '3dGame.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-          if (-not $exe) { Write-Error "No 3dGame.exe found"; exit 1 }
-          echo "exe_path=$exe" >> $env:GITHUB_OUTPUT
-
-      - name: Upload Windows executable to release
-        run: |
-          cp "${{ steps.find_exe.outputs.exe_path }}" ./3dGame-Windows.exe
-          gh release upload "${{ needs.create-release.outputs.tag }}" ./3dGame-Windows.exe --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3dGame-Windows
+          path: |
+            build/**/3dGame.exe
+          retention-days: 7
 
   # ------------------------------------------------------------------
   # Linux desktop build
   # ------------------------------------------------------------------
   build-linux:
-    needs: create-release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -114,25 +52,18 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --target 3dGame
 
-      - name: Locate Linux executable
-        id: find_exe
-        run: |
-          exe=$(find "$GITHUB_WORKSPACE" -type f -name '3dGame' | head -n 1)
-          if [ -z "$exe" ]; then echo "No 3dGame executable found" >&2; exit 1; fi
-          echo "exe_path=$exe" >> $GITHUB_OUTPUT
-
-      - name: Upload Linux executable to release
-        run: |
-          cp "${{ steps.find_exe.outputs.exe_path }}" ./3dGame-Linux
-          gh release upload "${{ needs.create-release.outputs.tag }}" ./3dGame-Linux --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3dGame-Linux
+          path: |
+            build/3dGame
+          retention-days: 7
 
   # ------------------------------------------------------------------
   # PSP build (requires the PSPSDK / psp-gcc toolchain)
   # ------------------------------------------------------------------
   build-psp:
-    needs: create-release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -158,18 +89,16 @@ jobs:
           export PATH="$PSPDEV/bin:$PATH"
           if [ -d "$PSPDEV" ] && [ -x "$PSPDEV/bin/psp-gcc" ]; then
             echo "PSPSDK already present in cache"
-            echo "pspdev_dir=$PSPDEV" >> $GITHUB_OUTPUT
             exit 0
           fi
           mkdir -p "$PSPDEV"
           git clone --depth 1 https://github.com/pspdev/psptoolchain.git "$HOME/psptoolchain"
           cd "$HOME/psptoolchain"
           MAKEFLAGS="-j1" ./toolchain.sh
-          echo "pspdev_dir=$PSPDEV" >> $GITHUB_OUTPUT
 
       - name: Configure CMake for PSP
         env:
-          PSPDEV: ${{ steps.psp-sdk.outputs.pspdev_dir }}
+          PSPDEV: $HOME/pspdev
         run: |
           export PATH="$PSPDEV/bin:$PATH"
           cmake -S . -B build \
@@ -180,21 +109,16 @@ jobs:
 
       - name: Build PSP port
         env:
-          PSPDEV: ${{ steps.psp-sdk.outputs.pspdev_dir }}
+          PSPDEV: $HOME/pspdev
         run: |
           export PATH="$PSPDEV/bin:$PATH"
           cmake --build build --config Release --target 3dGame
 
-      - name: Locate PSP PBP
-        id: find_pbp
-        run: |
-          pbp=$(find "$GITHUB_WORKSPACE/build" -type f \( -name 'EBOOT.PBP' -o -name '3dGame.PBP' \) | head -n 1)
-          if [ -z "$pbp" ]; then echo "No PSP PBP found" >&2; exit 1; fi
-          echo "pbp_path=$pbp" >> $GITHUB_OUTPUT
-
-      - name: Upload PSP PBP to release
-        run: |
-          cp "${{ steps.find_pbp.outputs.pbp_path }}" ./3dGame-PSP.PBP
-          gh release upload "${{ needs.create-release.outputs.tag }}" ./3dGame-PSP.PBP --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload PSP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3dGame-PSP
+          path: |
+            build/**/EBOOT.PBP
+            build/**/3dGame.PBP
+          retention-days: 7
