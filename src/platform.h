@@ -4,6 +4,12 @@
 
 #include <stdint.h>
 
+#ifdef _WIN32
+#ifndef strdup
+#define strdup _strdup
+#endif
+#endif
+
 /* Platform-independent key bitmask. Test with platform_get_keys() & KEY_*. */
 #define KEY_UP       (1u << 0)
 #define KEY_DOWN     (1u << 1)
