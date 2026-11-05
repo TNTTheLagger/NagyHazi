@@ -78,7 +78,7 @@ jobs:
             build-essential automake bison flex libncurses5-dev \
             libreadline-dev libusb-1.0-0-dev libboost-dev \
             libboost-system-dev libboost-filesystem-dev libgmp-dev \
-            libmpfr-dev libssl-dev make patch python3 subversion texinfo \
+            libmpfr-dev libmpc-dev libssl-dev make patch python3 subversion texinfo \
             wget git liblzma-dev libz-dev
 
       - name: Download prebuilt PSPSDK toolchain
