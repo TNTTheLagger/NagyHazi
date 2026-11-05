@@ -112,12 +112,12 @@ jobs:
         env:
           PSPDEV: ${{ env.HOME }}/pspdev
         run: |
-          set -e
+          set -ex
           export PATH="${{ env.HOME }}/pspdev/bin:$PATH"
           mkdir -p "${{ env.HOME }}/pspdev"
           git clone --depth 1 https://github.com/pspdev/psptoolchain.git "${{ env.HOME }}/psptoolchain"
           cd "${{ env.HOME }}/psptoolchain"
-          MAKEFLAGS="-j1" ./toolchain.sh
+          ./toolchain.sh 2>&1 | tee /tmp/psp-toolchain.log || (echo "=== PSPTOOLCHAIN BUILD FAILED ===" && tail -100 /tmp/psp-toolchain.log && exit 1)
 
       - name: Configure CMake for PSP
         env:
