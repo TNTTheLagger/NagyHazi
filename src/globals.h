@@ -2,6 +2,8 @@
 #ifndef INC_3DGAME_GLOBALS_H
 #define INC_3DGAME_GLOBALS_H
 
+#include <stdbool.h>
+
 #include "map.h"
 #include "player.h"
 #include "screen.h"
