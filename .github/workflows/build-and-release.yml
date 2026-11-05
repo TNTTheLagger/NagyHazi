@@ -174,21 +174,21 @@ jobs:
 
       - name: Upload Windows executable to release
         run: |
-          WIN_EXE=$(find artifacts/3dGame-Windows -name "*.exe" | head -1)
+          WIN_EXE=$(find artifacts/3dGame-Windows -type f -name "*.exe" | head -1)
           gh release upload "${{ steps.tag.outputs.tag }}" "$WIN_EXE" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux executable to release
         run: |
-          LINUX_EXE=$(find artifacts/3dGame-Linux -type f -executable | head -1)
+          LINUX_EXE=$(find artifacts/3dGame-Linux -type f | head -1)
           gh release upload "${{ steps.tag.outputs.tag }}" "$LINUX_EXE" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload PSP PBP to release
         run: |
-          PSP_PBP=$(find artifacts/3dGame-PSP -name "*.PBP" -o -name "*.pbp" | head -1)
+          PSP_PBP=$(find artifacts/3dGame-PSP -type f \( -name "*.PBP" -o -name "*.pbp" \) | head -1)
           if [ -n "$PSP_PBP" ]; then
             gh release upload "${{ steps.tag.outputs.tag }}" "$PSP_PBP" --clobber
           else
