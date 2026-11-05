@@ -72,18 +72,33 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache PSPSDK toolchain
-        id: cache-pspsdk
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.HOME }}/pspdev
-          key: pspdev-${{ runner.os }}-v1
-          restore-keys: |
-            pspdev-${{ runner.os }}-
+      - name: Download prebuilt PSPSDK toolchain
+        id: download-pspsdk
+        run: |
+          set -e
+          export PSPDEV=$HOME/pspdev
+          export PATH=$PSPDEV/bin:$PATH
+          mkdir -p $PSPDEV
+          
+          # Try to download prebuilt toolchain from GitHub releases
+          DOWNLOAD_URL=$(wget -qO- https://api.github.com/repos/pspdev/psptoolchain/releases/latest | grep browser_download_url | head -1 | cut -d'"' -f4)
+          if [ -n "$DOWNLOAD_URL" ]; then
+            echo "Downloading prebuilt PSPSDK from $DOWNLOAD_URL"
+            wget -q -O - "$DOWNLOAD_URL" | tar -xj -C $PSPDEV 2>/dev/null || \
+            wget -q -O - "$DOWNLOAD_URL" | tar -xz -C $PSPDEV 2>/dev/null || \
+            (wget -q "$DOWNLOAD_URL" -O /tmp/psptoolchain.tar && tar -xf /tmp/psptoolchain.tar -C $PSPDEV)
+          fi
+          
+          if [ -x "$PSPDEV/bin/psp-gcc" ]; then
+            echo "PSPSDK installed from prebuilt release"
+            echo "pspsdk_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "No prebuilt release found, building from source..."
+            echo "pspsdk_found=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Install PSPSDK build dependencies
-        if: steps.cache-pspsdk.outputs.cache-hit != 'true'
+        if: steps.download-pspsdk.outputs.pspsdk_found == 'false'
         run: |
           sudo apt-get update -y && sudo apt-get install -y --no-install-recommends \
             build-essential automake bison flex libncurses5-dev \
@@ -93,7 +108,7 @@ jobs:
             wget git liblzma-dev libz-dev
 
       - name: Build and install PSPSDK toolchain (psp-gcc)
-        if: steps.cache-pspsdk.outputs.cache-hit != 'true'
+        if: steps.download-pspsdk.outputs.pspsdk_found == 'false'
         env:
           PSPDEV: ${{ env.HOME }}/pspdev
         run: |
@@ -105,7 +120,6 @@ jobs:
           MAKEFLAGS="-j1" ./toolchain.sh
 
       - name: Configure CMake for PSP
-        if: steps.cache-pspsdk.outputs.cache-hit == 'true' || steps.build-psp-sdk-outcome.continue-on-error != 'true'
         env:
           PSPDEV: ${{ env.HOME }}/pspdev
         run: |
@@ -192,7 +206,7 @@ jobs:
           if [ -n "$PSP_PBP" ]; then
             gh release upload "${{ steps.tag.outputs.tag }}" "$PSP_PBP" --clobber
           else
-            echo "No PSP artifact found, skipping PSP upload"
+            echo "No PSP asset found, skipping PSP upload"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
