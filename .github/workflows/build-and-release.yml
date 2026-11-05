@@ -1,4 +1,4 @@
-name: Build
+name: Build and Release
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   # ------------------------------------------------------------------
@@ -71,7 +71,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache PSPSDK toolchain
+        id: cache-pspsdk
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.HOME }}/pspdev
+          key: pspdev-${{ runner.os }}-v1
+          restore-keys: |
+            pspdev-${{ runner.os }}-
+
       - name: Install PSPSDK build dependencies
+        if: steps.cache-pspsdk.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update -y && sudo apt-get install -y --no-install-recommends \
             build-essential automake bison flex libncurses5-dev \
@@ -81,37 +92,33 @@ jobs:
             wget git liblzma-dev libz-dev
 
       - name: Build and install PSPSDK toolchain (psp-gcc)
-        id: psp-sdk
+        if: steps.cache-pspsdk.outputs.cache-hit != 'true'
         env:
-          PSPDEV: $HOME/pspdev
+          PSPDEV: ${{ env.HOME }}/pspdev
         run: |
           set -e
-          export PATH="$PSPDEV/bin:$PATH"
-          if [ -d "$PSPDEV" ] && [ -x "$PSPDEV/bin/psp-gcc" ]; then
-            echo "PSPSDK already present in cache"
-            exit 0
-          fi
-          mkdir -p "$PSPDEV"
-          git clone --depth 1 https://github.com/pspdev/psptoolchain.git "$HOME/psptoolchain"
-          cd "$HOME/psptoolchain"
+          export PATH="${{ env.HOME }}/pspdev/bin:$PATH"
+          mkdir -p "${{ env.HOME }}/pspdev"
+          git clone --depth 1 https://github.com/pspdev/psptoolchain.git "${{ env.HOME }}/psptoolchain"
+          cd "${{ env.HOME }}/psptoolchain"
           MAKEFLAGS="-j1" ./toolchain.sh
 
       - name: Configure CMake for PSP
         env:
-          PSPDEV: $HOME/pspdev
+          PSPDEV: ${{ env.HOME }}/pspdev
         run: |
-          export PATH="$PSPDEV/bin:$PATH"
+          export PATH="${{ env.HOME }}/pspdev/bin:$PATH"
           cmake -S . -B build \
             -DBUILD_PSP=ON \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$PSPDEV/psp/sdk/cmake/PSP.cmake" \
-            -DCMAKE_PREFIX_PATH="$PSPDEV/psp/sdk"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.HOME }}/pspdev/psp/sdk/cmake/PSP.cmake" \
+            -DCMAKE_PREFIX_PATH="${{ env.HOME }}/pspdev/psp/sdk"
 
       - name: Build PSP port
         env:
-          PSPDEV: $HOME/pspdev
+          PSPDEV: ${{ env.HOME }}/pspdev
         run: |
-          export PATH="$PSPDEV/bin:$PATH"
+          export PATH="${{ env.HOME }}/pspdev/bin:$PATH"
           cmake --build build --config Release --target 3dGame
 
       - name: Upload PSP artifact
@@ -119,6 +126,67 @@ jobs:
         with:
           name: 3dGame-PSP
           path: |
-            build/**/EBOOT.PBP
-            build/**/3dGame.PBP
+            build/**/*.PBP
+            build/**/*.pbp
           retention-days: 7
+
+  # ------------------------------------------------------------------
+  # Create release and upload all artifacts
+  # ------------------------------------------------------------------
+  create-release:
+    needs: [build-windows, build-linux, build-psp]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Determine next release tag
+        id: tag
+        run: |
+          set -e
+          latest_tag=$(git tag --sort=-v:refname | head -n 1 || echo "0.0.0")
+          latest_tag="${latest_tag#v}"
+          IFS='.' read -r major minor patch <<< "$latest_tag"
+          : "${major:=0}" "${minor:=0}" "${patch:=0}"
+          new_patch=$((patch + 1))
+          new_tag="${major}.${minor}.${new_patch}"
+          echo "tag=$new_tag" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub release
+        id: create_release
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --title "${{ steps.tag.outputs.tag }}" \
+            --draft=false \
+            --prerelease=false \
+            --notes "Auto-built for Windows, Linux, and PSP"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows executable to release
+        run: |
+          WIN_EXE=$(find artifacts/3dGame-Windows -name "*.exe" | head -1)
+          gh release upload "${{ steps.tag.outputs.tag }}" "$WIN_EXE" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux executable to release
+        run: |
+          LINUX_EXE=$(find artifacts/3dGame-Linux -type f -executable | head -1)
+          gh release upload "${{ steps.tag.outputs.tag }}" "$LINUX_EXE" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload PSP PBP to release
+        run: |
+          PSP_PBP=$(find artifacts/3dGame-PSP -name "*.PBP" -o -name "*.pbp" | head -1)
+          gh release upload "${{ steps.tag.outputs.tag }}" "$PSP_PBP" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
