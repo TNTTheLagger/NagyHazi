@@ -29,8 +29,8 @@ jobs:
         id: tag
         run: |
           set -e
-          repo="${{ github.repository }}"
-          latest_tag=$(gh release view --repo "$repo" --json tagName -q .tagName 2>/dev/null || echo "0.0.0")
+          # Use latest git tag (not latest release) to avoid conflicts
+          latest_tag=$(git tag --sort=-v:refname | head -n 1 || echo "0.0.0")
           latest_tag="${latest_tag#v}"
           IFS='.' read -r major minor patch <<< "$latest_tag"
           : "${major:=0}" "${minor:=0}" "${patch:=0}"
