@@ -18,7 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -54,15 +53,15 @@ jobs:
 
       - name: Create GitHub release
         id: create_release
-        uses: actions/create-release@v1
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --title "${{ steps.tag.outputs.tag }}" \
+            --notes-file release_body.txt \
+            --draft=false \
+            --prerelease=false
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          release_name: ${{ steps.tag.outputs.tag }}
-          body_path: release_body.txt
-          draft: false
-          prerelease: false
 
   # ------------------------------------------------------------------
   # Windows desktop build
@@ -91,14 +90,10 @@ jobs:
           echo "exe_path=$exe" >> $env:GITHUB_OUTPUT
 
       - name: Upload Windows executable to release
-        uses: actions/upload-release-asset@v1
+        run: |
+          gh release upload "${{ needs.create-release.outputs.tag }}" "${{ steps.find_exe.outputs.exe_path }}" --name 3dGame-Windows.exe --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find_exe.outputs.exe_path }}
-          asset_name: 3dGame-Windows.exe
-          asset_content_type: application/octet-stream
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ------------------------------------------------------------------
   # Linux desktop build
@@ -126,14 +121,10 @@ jobs:
           echo "exe_path=$exe" >> $GITHUB_OUTPUT
 
       - name: Upload Linux executable to release
-        uses: actions/upload-release-asset@v1
+        run: |
+          gh release upload "${{ needs.create-release.outputs.tag }}" "${{ steps.find_exe.outputs.exe_path }}" --name 3dGame-Linux --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find_exe.outputs.exe_path }}
-          asset_name: 3dGame-Linux
-          asset_content_type: application/octet-stream
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ------------------------------------------------------------------
   # PSP build (requires the PSPSDK / psp-gcc toolchain)
@@ -200,11 +191,7 @@ jobs:
           echo "pbp_path=$pbp" >> $GITHUB_OUTPUT
 
       - name: Upload PSP PBP to release
-        uses: actions/upload-release-asset@v1
+        run: |
+          gh release upload "${{ needs.create-release.outputs.tag }}" "${{ steps.find_pbp.outputs.pbp_path }}" --name 3dGame-PSP.PBP --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find_pbp.outputs.pbp_path }}
-          asset_name: 3dGame-PSP.PBP
-          asset_content_type: application/octet-stream
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
