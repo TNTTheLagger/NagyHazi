@@ -61,7 +61,7 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------------------------
-  # PSP build (requires PSPSDK / psp-gcc toolchain)
+  # PSP build (PSP - requires PSPSDK / psp-gcc toolchain)
   # ------------------------------------------------------------------
   build-psp:
     runs-on: ubuntu-latest
@@ -71,16 +71,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install PSPSDK build dependencies
-        run: |
-          sudo apt-get update -y && sudo apt-get install -y --no-install-recommends \
-            build-essential automake bison flex libncurses5-dev \
-            libreadline-dev libusb-1.0-0-dev libboost-dev \
-            libboost-system-dev libboost-filesystem-dev libgmp-dev \
-            libmpfr-dev libmpc-dev libssl-dev make patch python3 subversion texinfo \
-            wget git liblzma-dev libz-dev
-
-      - name: Install PSPSDK toolchain
+      - name: Download prebuilt PSPSDK toolchain
         env:
           PSPDEV: ${{ env.HOME }}/pspdev
         run: |
@@ -89,30 +80,36 @@ jobs:
           export PATH=$PSPDEV/bin:$PATH
           mkdir -p $PSPDEV
 
-          # Try downloading prebuilt PSPSDK from pspdev GitHub releases
+          # Try downloading prebuilt PSPSDK toolchain from GitHub releases
+          echo "Downloading PSPSDK toolchain..."
+          wget -qO- https://api.github.com/repos/pspdev/psptoolchain/releases/latest | head -200
+          echo "---"
+          
+          # Try to find and download prebuilt tarball
           DOWNLOAD_URL=$(wget -qO- https://api.github.com/repos/pspdev/psptoolchain/releases/latest | grep browser_download_url | head -1 | cut -d'"' -f4)
           if [ -n "$DOWNLOAD_URL" ]; then
-            echo "Downloading prebuilt PSPSDK from $DOWNLOAD_URL"
+            echo "Downloading $DOWNLOAD_URL"
             wget -q "$DOWNLOAD_URL" -O /tmp/psptoolchain.tar.gz 2>/dev/null || \
             wget -q "$DOWNLOAD_URL" -O /tmp/psptoolchain.tar 2>/dev/null || true
             if [ -f /tmp/psptoolchain.tar.gz ]; then
+              echo "Extracting tar.gz..."
               tar -xzf /tmp/psptoolchain.tar.gz -C $PSPDEV || true
             fi
             if [ -f /tmp/psptoolchain.tar ]; then
+              echo "Extracting tar..."
               tar -xf /tmp/psptoolchain.tar -C $PSPDEV || true
             fi
           fi
 
           if [ -x "$PSPDEV/bin/psp-gcc" ]; then
-            echo "PSPSDK ready from prebuilt release"
+            echo "PSPSDK ready from prebuilt release!"
             exit 0
           fi
 
-          # Fall back to building from source
           echo "No prebuilt release found, building from source..."
           git clone --depth 1 https://github.com/pspdev/psptoolchain.git "${{ env.HOME }}/psptoolchain"
           cd "${{ env.HOME }}/psptoolchain"
-          ./toolchain.sh 2>&1 | tee /tmp/psp-toolchain.log || (echo "=== PSPTOOLCHAIN BUILD FAILED ===" && tail -200 /tmp/psp-toolchain.log && exit 1)
+          ./toolchain.sh 2>&1 | tee /tmp/psp-toolchain.log || (echo "=== PSPTOOLCHAIN BUILD FAILED ===" && tail -100 /tmp/psp-toolchain.log && exit 1)
 
       - name: Configure CMake for PSP
         env:
