@@ -72,33 +72,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download prebuilt PSPSDK toolchain
-        id: download-pspsdk
-        run: |
-          set -e
-          export PSPDEV=$HOME/pspdev
-          export PATH=$PSPDEV/bin:$PATH
-          mkdir -p $PSPDEV
-          
-          # Try to download prebuilt toolchain from GitHub releases
-          DOWNLOAD_URL=$(wget -qO- https://api.github.com/repos/pspdev/psptoolchain/releases/latest | grep browser_download_url | head -1 | cut -d'"' -f4)
-          if [ -n "$DOWNLOAD_URL" ]; then
-            echo "Downloading prebuilt PSPSDK from $DOWNLOAD_URL"
-            wget -q -O - "$DOWNLOAD_URL" | tar -xj -C $PSPDEV 2>/dev/null || \
-            wget -q -O - "$DOWNLOAD_URL" | tar -xz -C $PSPDEV 2>/dev/null || \
-            (wget -q "$DOWNLOAD_URL" -O /tmp/psptoolchain.tar && tar -xf /tmp/psptoolchain.tar -C $PSPDEV)
-          fi
-          
-          if [ -x "$PSPDEV/bin/psp-gcc" ]; then
-            echo "PSPSDK installed from prebuilt release"
-            echo "pspsdk_found=true" >> $GITHUB_OUTPUT
-          else
-            echo "No prebuilt release found, building from source..."
-            echo "pspsdk_found=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Install PSPSDK build dependencies
-        if: steps.download-pspsdk.outputs.pspsdk_found == 'false'
         run: |
           sudo apt-get update -y && sudo apt-get install -y --no-install-recommends \
             build-essential automake bison flex libncurses5-dev \
@@ -106,6 +80,33 @@ jobs:
             libboost-system-dev libboost-filesystem-dev libgmp-dev \
             libmpfr-dev libssl-dev make patch python3 subversion texinfo \
             wget git liblzma-dev libz-dev
+
+      - name: Download prebuilt PSPSDK toolchain
+        id: download-pspsdk
+        env:
+          PSPDEV: ${{ env.HOME }}/pspdev
+        run: |
+          set -e
+          export PSPDEV=${{ env.HOME }}/pspdev
+          export PATH=$PSPDEV/bin:$PATH
+          mkdir -p $PSPDEV
+          
+          # Try downloading prebuilt PSPSDK from GitHub releases
+          DOWNLOAD_URL=$(wget -qO- https://api.github.com/repos/pspdev/psptoolchain/releases/latest | grep browser_download_url | head -1 | cut -d'"' -f4)
+          if [ -n "$DOWNLOAD_URL" ]; then
+            echo "Downloading prebuilt PSPSDK from $DOWNLOAD_URL"
+            wget -q -O - "$DOWNLOAD_URL" | tar -xj -C $PSPDEV 2>/dev/null || \
+            wget -q -O - "$DOWNLOAD_URL" | tar -xz -C $PSPDEV 2>/dev/null || \
+            wget -q "$DOWNLOAD_URL" -O /tmp/psptoolchain.tar && tar -xf /tmp/psptoolchain.tar -C $PSPDEV
+          fi
+          
+          if [ -x "$PSPDEV/bin/psp-gcc" ]; then
+            echo "PSPSDK installed from prebuilt release"
+            echo "pspsdk_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "No prebuilt release found"
+            echo "pspsdk_found=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build and install PSPSDK toolchain (psp-gcc)
         if: steps.download-pspsdk.outputs.pspsdk_found == 'false'
