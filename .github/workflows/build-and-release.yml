@@ -158,17 +158,21 @@ jobs:
 
       - name: Build and install PSPSDK toolchain (psp-gcc)
         id: psp-sdk
+        env:
+          PSPDEV: $HOME/pspdev
         run: |
           set -e
-          if [ -d "$HOME/pspdev" ] && [ -x "$HOME/pspdev/bin/psp-gcc" ]; then
+          export PATH="$PSPDEV/bin:$PATH"
+          if [ -d "$PSPDEV" ] && [ -x "$PSPDEV/bin/psp-gcc" ]; then
             echo "PSPSDK already present in cache"
-            echo "pspdev_dir=$HOME/pspdev" >> $GITHUB_OUTPUT
+            echo "pspdev_dir=$PSPDEV" >> $GITHUB_OUTPUT
             exit 0
           fi
+          mkdir -p "$PSPDEV"
           git clone --depth 1 https://github.com/pspdev/psptoolchain.git "$HOME/psptoolchain"
           cd "$HOME/psptoolchain"
-          ./toolchain.sh
-          echo "pspdev_dir=$HOME/pspdev" >> $GITHUB_OUTPUT
+          MAKEFLAGS="-j1" ./toolchain.sh
+          echo "pspdev_dir=$PSPDEV" >> $GITHUB_OUTPUT
 
       - name: Configure CMake for PSP
         env:
