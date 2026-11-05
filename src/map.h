@@ -1,9 +1,8 @@
-// NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
+//NEPTUN_COD:FF64XM NEV:Kaba Kevin Zsolt
 #ifndef INC_3DGAME_MAP_H
 #define INC_3DGAME_MAP_H
 
-typedef struct map
-{
+typedef struct map {
     int width;
     int height;
     char *m;
@@ -14,4 +13,5 @@ typedef struct map
 map load_map(char file_path[]);
 void save_map_to_file(const char *fname);
 
-#endif // INC_3DGAME_MAP_H
+
+#endif //INC_3DGAME_MAP_H
