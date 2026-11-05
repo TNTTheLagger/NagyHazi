@@ -104,7 +104,7 @@ jobs:
             echo "PSPSDK installed from prebuilt release"
             echo "pspsdk_found=true" >> $GITHUB_OUTPUT
           else
-            echo "No prebuilt release found"
+            echo "No prebuilt release found, will build from source"
             echo "pspsdk_found=false" >> $GITHUB_OUTPUT
           fi
 
