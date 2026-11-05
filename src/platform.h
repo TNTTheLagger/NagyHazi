@@ -5,8 +5,18 @@
 #include <stdint.h>
 
 #ifdef _WIN32
+#include <stdlib.h>
+#include <string.h>
 #ifndef strdup
-#define strdup _strdup
+static inline char *platform_strdup_fallback(const char *s)
+{
+    size_t len = strlen(s) + 1;
+    char *p = (char *)malloc(len);
+    if (p)
+        memcpy(p, s, len);
+    return p;
+}
+#define strdup platform_strdup_fallback
 #endif
 #endif
 
