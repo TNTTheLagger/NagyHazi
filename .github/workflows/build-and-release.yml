@@ -81,11 +81,7 @@ jobs:
           mkdir -p $PSPDEV
 
           echo "Downloading prebuilt PSPSDK toolchain from GitHub releases..."
-          gh release download "pspsdk-v1" -p pspdev-linux-x86_64.tar.gz --clobber 2>/dev/null || {
-            echo "WARNING: Could not download prebuilt PSPSDK from release assets."
-            echo "Please upload pspdev-linux-x86_64.tar.gz as a release asset tagged 'pspsdk-v1' on this repo."
-            exit 1
-          fi
+          curl -sL -o pspdev-linux-x86_64.tar.gz "https://github.com/TNTTheLagger/NagyHazi/releases/download/pspsdk-v1/pspdev-linux-x86_64.tar.gz"
 
           echo "Extracting PSPSDK toolchain..."
           tar -xzf pspdev-linux-x86_64.tar.gz -C $PSPDEV
@@ -188,4 +184,3 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
