@@ -73,18 +73,18 @@ jobs:
 
       - name: Download prebuilt PSPSDK toolchain
         env:
-          PSPDEV: ${{ env.HOME }}/pspdev
+          PSPDEV: ${{ github.workspace }}/pspdev
         run: |
           set -e
-          export PSPDEV=${{ env.HOME }}/pspdev
-          export PATH=$PSPDEV/bin:$PATH
-          mkdir -p $PSPDEV
+          export PSPDEV="${{ github.workspace }}/pspdev"
+          export PATH="$PSPDEV/bin:$PATH"
+          mkdir -p "$PSPDEV"
 
           echo "Downloading prebuilt PSPSDK toolchain from GitHub releases..."
           curl -sL -o pspdev-linux-x86_64.tar.gz "https://github.com/TNTTheLagger/NagyHazi/releases/download/pspsdk-v1/pspdev-linux-x86_64.tar.gz"
 
           echo "Extracting PSPSDK toolchain..."
-          tar -xzf pspdev-linux-x86_64.tar.gz -C $PSPDEV
+          tar -xzf pspdev-linux-x86_64.tar.gz -C "$PSPDEV"
           rm -f pspdev-linux-x86_64.tar.gz
 
           if [ ! -x "$PSPDEV/bin/psp-gcc" ]; then
@@ -95,20 +95,20 @@ jobs:
 
       - name: Configure CMake for PSP
         env:
-          PSPDEV: ${{ env.HOME }}/pspdev
+          PSPDEV: ${{ github.workspace }}/pspdev
         run: |
-          export PATH="${{ env.HOME }}/pspdev/bin:$PATH"
+          export PATH="$PSPDEV/bin:$PATH"
           cmake -S . -B build \
             -DBUILD_PSP=ON \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.HOME }}/pspdev/psp/sdk/cmake/PSP.cmake" \
-            -DCMAKE_PREFIX_PATH="${{ env.HOME }}/pspdev/psp/sdk"
+            -DCMAKE_TOOLCHAIN_FILE="$PSPDEV/psp/sdk/cmake/PSP.cmake" \
+            -DCMAKE_PREFIX_PATH="$PSPDEV/psp/sdk"
 
       - name: Build PSP port
         env:
           PSPDEV: ${{ env.HOME }}/pspdev
         run: |
-          export PATH="${{ env.HOME }}/pspdev/bin:$PATH"
+          export PATH="$PSPDEV/bin:$PATH"
           cmake --build build --config Release --target 3dGame
 
       - name: Upload PSP artifact
