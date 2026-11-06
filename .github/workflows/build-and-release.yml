@@ -110,6 +110,7 @@ jobs:
             git clone --depth 1 https://github.com/pspdev/psptoolchain.git /tmp/psptoolchain
             (
               cd /tmp/psptoolchain
+              ./prepare.sh
               MAKEFLAGS="-j1" ./toolchain.sh
             )
 
