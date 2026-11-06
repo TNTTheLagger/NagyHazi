@@ -61,7 +61,7 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------------------------
-  # PSP build (PSP - requires PSPSDK / psp-gcc toolchain)
+  # PSP build (uses prebuilt PSPSDK from GitHub release assets)
   # ------------------------------------------------------------------
   build-psp:
     runs-on: ubuntu-latest
@@ -80,36 +80,22 @@ jobs:
           export PATH=$PSPDEV/bin:$PATH
           mkdir -p $PSPDEV
 
-          # Try downloading prebuilt PSPSDK toolchain from GitHub releases
-          echo "Downloading PSPSDK toolchain..."
-          wget -qO- https://api.github.com/repos/pspdev/psptoolchain/releases/latest | head -200
-          echo "---"
-          
-          # Try to find and download prebuilt tarball
-          DOWNLOAD_URL=$(wget -qO- https://api.github.com/repos/pspdev/psptoolchain/releases/latest | grep browser_download_url | head -1 | cut -d'"' -f4)
-          if [ -n "$DOWNLOAD_URL" ]; then
-            echo "Downloading $DOWNLOAD_URL"
-            wget -q "$DOWNLOAD_URL" -O /tmp/psptoolchain.tar.gz 2>/dev/null || \
-            wget -q "$DOWNLOAD_URL" -O /tmp/psptoolchain.tar 2>/dev/null || true
-            if [ -f /tmp/psptoolchain.tar.gz ]; then
-              echo "Extracting tar.gz..."
-              tar -xzf /tmp/psptoolchain.tar.gz -C $PSPDEV || true
-            fi
-            if [ -f /tmp/psptoolchain.tar ]; then
-              echo "Extracting tar..."
-              tar -xf /tmp/psptoolchain.tar -C $PSPDEV || true
-            fi
+          echo "Downloading prebuilt PSPSDK toolchain from GitHub releases..."
+          gh release download "pspsdk-v1" -p pspdev-linux-x86_64.tar.gz --clobber 2>/dev/null || {
+            echo "WARNING: Could not download prebuilt PSPSDK from release assets."
+            echo "Please upload pspdev-linux-x86_64.tar.gz as a release asset tagged 'pspsdk-v1' on this repo."
+            exit 1
           fi
 
-          if [ -x "$PSPDEV/bin/psp-gcc" ]; then
-            echo "PSPSDK ready from prebuilt release!"
-            exit 0
-          fi
+          echo "Extracting PSPSDK toolchain..."
+          tar -xzf pspdev-linux-x86_64.tar.gz -C $PSPDEV
+          rm -f pspdev-linux-x86_64.tar.gz
 
-          echo "No prebuilt release found, building from source..."
-          git clone --depth 1 https://github.com/pspdev/psptoolchain.git "${{ env.HOME }}/psptoolchain"
-          cd "${{ env.HOME }}/psptoolchain"
-          ./toolchain.sh 2>&1 | tee /tmp/psp-toolchain.log || (echo "=== PSPTOOLCHAIN BUILD FAILED ===" && tail -100 /tmp/psp-toolchain.log && exit 1)
+          if [ ! -x "$PSPDEV/bin/psp-gcc" ]; then
+            echo "ERROR: psp-gcc not found after extraction!"
+            exit 1
+          fi
+          echo "PSPSDK ready at $PSPDEV"
 
       - name: Configure CMake for PSP
         env:
