@@ -87,28 +87,28 @@ jobs:
           tar -xzf pspdev-linux-x86_64.tar.gz -C $PSPDEV
           rm -f pspdev-linux-x86_64.tar.gz
 
-          if [ ! -x "$PSPDEV/bin/psp-gcc" ]; then
+          if [ ! -x "$PSPDEV/pspdev/bin/psp-gcc" ]; then
             echo "ERROR: psp-gcc not found after extraction!"
             exit 1
           fi
-          echo "PSPSDK ready at $PSPDEV"
+          echo "PSPSDK ready at $PSPDEV/pspdev"
 
       - name: Configure CMake for PSP
         env:
           PSPDEV: ${{ env.HOME }}/pspdev
         run: |
-          export PATH="${{ env.HOME }}/pspdev/bin:$PATH"
+          export PATH="${{ env.HOME }}/pspdev/pspdev/bin:$PATH"
           cmake -S . -B build \
             -DBUILD_PSP=ON \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.HOME }}/pspdev/psp/sdk/cmake/PSP.cmake" \
-            -DCMAKE_PREFIX_PATH="${{ env.HOME }}/pspdev/psp/sdk"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.HOME }}/pspdev/pspdev/psp/sdk/cmake/PSP.cmake" \
+            -DCMAKE_PREFIX_PATH="${{ env.HOME }}/pspdev/pspdev/psp/sdk"
 
       - name: Build PSP port
         env:
           PSPDEV: ${{ env.HOME }}/pspdev
         run: |
-          export PATH="${{ env.HOME }}/pspdev/bin:$PATH"
+          export PATH="${{ env.HOME }}/pspdev/pspdev/bin:$PATH"
           cmake --build build --config Release --target 3dGame
 
       - name: Upload PSP artifact
