@@ -61,7 +61,7 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------------------------
-  # PSP build (uses prebuilt PSPSDK toolchain from GitHub release assets)
+  # PSP build (prebuilt PSPSDK toolchain from GitHub release assets)
   # ------------------------------------------------------------------
   build-psp:
     runs-on: ubuntu-latest
@@ -72,9 +72,11 @@ jobs:
           fetch-depth: 0
 
       - name: Download prebuilt PSPSDK toolchain
+        env:
+          PSPDEV: ${{ env.HOME }}/pspdev
         run: |
           set -e
-          export PSPDEV=$HOME/pspdev
+          export PSPDEV=${{ env.HOME }}/pspdev
           export PATH=$PSPDEV/bin:$PATH
           mkdir -p $PSPDEV
 
