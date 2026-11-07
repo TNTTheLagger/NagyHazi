@@ -61,17 +61,17 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------------------------
-  # PSP build (prebuilt PSPSDK toolchain from GitHub release assets)
+  # PSP build (PSPSDK toolchain built from source)
   # ------------------------------------------------------------------
   build-psp:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Download prebuilt PSPSDK toolchain
+      - name: Build PSPSDK toolchain from source
         env:
           PSPDEV: ${{ github.workspace }}/pspdev
         run: |
@@ -80,51 +80,25 @@ jobs:
           export PATH="$PSPDEV/bin:$PATH"
           mkdir -p "$PSPDEV"
 
-          echo "Downloading prebuilt PSPSDK toolchain from GitHub releases..."
-          curl -sL -o pspdev-linux-x86_64.tar.gz "https://github.com/TNTTheLagger/NagyHazi/releases/download/pspsdk-v1/pspdev-linux-x86_64.tar.gz"
-
-          echo "Extracting PSPSDK toolchain..."
-          tar -xzf pspdev-linux-x86_64.tar.gz -C "$PSPDEV" --strip-components=1
-          rm -f pspdev-linux-x86_64.tar.gz
+          git clone --depth 1 https://github.com/pspdev/psptoolchain.git /tmp/psptoolchain
+          (
+            cd /tmp/psptoolchain
+            sudo ./prepare.sh
+            MAKEFLAGS="-j1" ./toolchain.sh
+          )
 
           if [ ! -x "$PSPDEV/bin/psp-gcc" ]; then
-            echo "ERROR: psp-gcc not found after extraction!"
+            echo "ERROR: psp-gcc was not installed by the source build!"
+            exit 1
+          fi
+          if [ ! -f "$PSPDEV/psp/share/pspdev.cmake" ]; then
+            echo "ERROR: PSP CMake toolchain file was not installed by the source build!"
             exit 1
           fi
 
-          if [ -f "$PSPDEV/psp/sdk/cmake/PSP.cmake" ]; then
-            echo "PSP_TOOLCHAIN_FILE=$PSPDEV/psp/sdk/cmake/PSP.cmake" >> "$GITHUB_ENV"
-            echo "PSP_PREFIX_PATH=$PSPDEV/psp/sdk" >> "$GITHUB_ENV"
-          elif [ -f "$PSPDEV/psp/share/pspdev.cmake" ]; then
-            echo "PSP_TOOLCHAIN_FILE=$PSPDEV/psp/share/pspdev.cmake" >> "$GITHUB_ENV"
-            echo "PSP_PREFIX_PATH=$PSPDEV/psp" >> "$GITHUB_ENV"
-          else
-            echo "PSP CMake toolchain files missing from release asset, building PSPSDK from source..."
-            sudo apt-get update -y && sudo apt-get install -y --no-install-recommends \
-              build-essential automake bison flex libncurses5-dev \
-              libreadline-dev libusb-1.0-0-dev libboost-dev \
-              libboost-system-dev libboost-filesystem-dev libgmp-dev \
-              libmpfr-dev libssl-dev libmpc-dev make patch python3 subversion texinfo \
-              wget git liblzma-dev libz-dev
-
-            git clone --depth 1 https://github.com/pspdev/psptoolchain.git /tmp/psptoolchain
-            (
-              cd /tmp/psptoolchain
-              ./prepare.sh
-              MAKEFLAGS="-j1" ./toolchain.sh
-            )
-
-            if [ -f "$PSPDEV/psp/sdk/cmake/PSP.cmake" ]; then
-              echo "PSP_TOOLCHAIN_FILE=$PSPDEV/psp/sdk/cmake/PSP.cmake" >> "$GITHUB_ENV"
-              echo "PSP_PREFIX_PATH=$PSPDEV/psp/sdk" >> "$GITHUB_ENV"
-            elif [ -f "$PSPDEV/psp/share/pspdev.cmake" ]; then
-              echo "PSP_TOOLCHAIN_FILE=$PSPDEV/psp/share/pspdev.cmake" >> "$GITHUB_ENV"
-              echo "PSP_PREFIX_PATH=$PSPDEV/psp" >> "$GITHUB_ENV"
-            else
-              echo "ERROR: PSP CMake toolchain file missing after PSPSDK source build!"
-              exit 1
-            fi
-          fi
+          echo "PSPDEV=$PSPDEV" >> "$GITHUB_ENV"
+          echo "PSP_TOOLCHAIN_FILE=$PSPDEV/psp/share/pspdev.cmake" >> "$GITHUB_ENV"
+          echo "PSP_PREFIX_PATH=$PSPDEV/psp" >> "$GITHUB_ENV"
           echo "PSPSDK ready at $PSPDEV"
 
       - name: Configure CMake for PSP
@@ -144,6 +118,8 @@ jobs:
         run: |
           export PATH="$PSPDEV/bin:$PATH"
           cmake --build build --config Release --target 3dGame
+          test -f build/EBOOT.PBP
+          echo "PSP binary created at build/EBOOT.PBP"
 
       - name: Upload PSP artifact
         uses: actions/upload-artifact@v4
