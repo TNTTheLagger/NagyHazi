@@ -114,12 +114,16 @@ jobs:
               MAKEFLAGS="-j1" ./toolchain.sh
             )
 
-            if [ ! -f "$PSPDEV/psp/sdk/cmake/PSP.cmake" ]; then
-              echo "ERROR: PSP.cmake still missing after PSPSDK source build!"
+            if [ -f "$PSPDEV/psp/sdk/cmake/PSP.cmake" ]; then
+              echo "PSP_TOOLCHAIN_FILE=$PSPDEV/psp/sdk/cmake/PSP.cmake" >> "$GITHUB_ENV"
+              echo "PSP_PREFIX_PATH=$PSPDEV/psp/sdk" >> "$GITHUB_ENV"
+            elif [ -f "$PSPDEV/psp/share/pspdev.cmake" ]; then
+              echo "PSP_TOOLCHAIN_FILE=$PSPDEV/psp/share/pspdev.cmake" >> "$GITHUB_ENV"
+              echo "PSP_PREFIX_PATH=$PSPDEV/psp" >> "$GITHUB_ENV"
+            else
+              echo "ERROR: PSP CMake toolchain file missing after PSPSDK source build!"
               exit 1
             fi
-            echo "PSP_TOOLCHAIN_FILE=$PSPDEV/psp/sdk/cmake/PSP.cmake" >> "$GITHUB_ENV"
-            echo "PSP_PREFIX_PATH=$PSPDEV/psp/sdk" >> "$GITHUB_ENV"
           fi
           echo "PSPSDK ready at $PSPDEV"
 
