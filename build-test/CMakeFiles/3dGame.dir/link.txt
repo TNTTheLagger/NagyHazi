@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/3dGame.dir/link.d CMakeFiles/3dGame.dir/src/main.c.o CMakeFiles/3dGame.dir/src/platform.c.o CMakeFiles/3dGame.dir/src/screen.c.o CMakeFiles/3dGame.dir/src/map.c.o CMakeFiles/3dGame.dir/src/player.c.o CMakeFiles/3dGame.dir/src/menu.c.o CMakeFiles/3dGame.dir/src/render.c.o -o 3dGame  -lm
