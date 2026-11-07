@@ -1,0 +1,3 @@
+/home/runner/work/NagyHazi/NagyHazi/build-test/CMakeFiles/3dGame.dir
+/home/runner/work/NagyHazi/NagyHazi/build-test/CMakeFiles/edit_cache.dir
+/home/runner/work/NagyHazi/NagyHazi/build-test/CMakeFiles/rebuild_cache.dir
